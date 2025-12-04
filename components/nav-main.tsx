@@ -1,0 +1,52 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { IconCirclePlusFilled, IconMail, type Icon } from "@tabler/icons-react";
+
+import { Button } from "@/components/ui/button";
+import {
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+} from "@/components/animate-ui/components/radix/sidebar";
+
+export function NavMain({
+  items,
+}: {
+  items: {
+    title: string;
+    url: string;
+    icon?: Icon;
+    isActive?: boolean;
+  }[];
+}) {
+  const pathname = usePathname();
+
+  return (
+    <SidebarGroup>
+      <SidebarGroupContent className="flex flex-col gap-2">
+        <SidebarGroupLabel>Management</SidebarGroupLabel>
+        <SidebarMenu className="flex flex-col gap-4">
+          {items.map((item) => (
+            <SidebarMenuItem key={item.title}>
+              <SidebarMenuButton
+                asChild
+                tooltip={item.title}
+                isActive={item.isActive || pathname === item.url}
+              >
+                <Link href={item.url}>
+                  {item.icon && <item.icon />}
+                  <span>{item.title}</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          ))}
+        </SidebarMenu>
+      </SidebarGroupContent>
+    </SidebarGroup>
+  );
+}
