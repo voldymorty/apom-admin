@@ -1,8 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { useAuth } from "@/components/providers/auth-provider";
 import { AppSidebar } from "@/components/app-sidebar";
 import { ChartAreaInteractive } from "@/components/chart-area-interactive";
 import { DataTable } from "@/components/data-table";
@@ -17,20 +15,12 @@ import data from "./data.json";
 
 export default function Page() {
   const [mounted, setMounted] = useState(false);
-  const { isAuthenticated } = useAuth();
-  const router = useRouter();
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  useEffect(() => {
-    if (mounted && !isAuthenticated) {
-      router.push("/login");
-    }
-  }, [mounted, isAuthenticated, router]);
-
-  if (!mounted || !isAuthenticated) {
+  if (!mounted) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">

@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { API_ENDPOINTS } from "@/lib/api";
 
 type User = {
   id: number;
@@ -20,6 +19,16 @@ type AuthContextType = {
 };
 
 const AuthContext = React.createContext<AuthContextType | undefined>(undefined);
+
+// Mock user data for static UI
+const MOCK_USER: User = {
+  id: 1,
+  email: "admin@example.com",
+  mobile_number: "1234567890",
+  roles: ["admin", "user"],
+};
+
+const MOCK_TOKEN = "mock-auth-token-12345";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = React.useState(false);
@@ -53,57 +62,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async (mobile: string, password: string): Promise<void> => {
       const cleanMobile = mobile.replace(/\D/g, ""); // Remove non-digits
 
-      // Make API call to login endpoint
-      const response = await fetch(API_ENDPOINTS.AUTH.LOGIN, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          mobile_number: cleanMobile,
-          password: password,
-        }),
-      });
-
-      const data = await response.json().catch(() => {
-        throw new Error("Failed to connect to server. Please try again.");
-      });
-
-      // Check if login was successful
-      if (!response.ok || !data.success) {
-        // Handle validation errors
-        if (
-          data.errors &&
-          Array.isArray(data.errors) &&
-          data.errors.length > 0
-        ) {
-          const errorMessages = data.errors
-            .map((err: { message: string }) => err.message)
-            .join(", ");
-          throw new Error(errorMessages);
-        }
-        throw new Error(data.message || "Login failed");
+      // Basic validation
+      if (cleanMobile.length < 10) {
+        throw new Error("Please enter a valid mobile number (at least 10 digits)");
       }
 
-      // Extract data from response
-      const { user, token, refreshToken } = data.data;
-
-      if (!user || !token) {
-        throw new Error("Invalid response from server");
+      if (!password || password.length < 1) {
+        throw new Error("Please enter your password");
       }
 
+      // Simulate API delay
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      // Mock authentication - accept any valid credentials
       // Store authentication data
       setIsAuthenticated(true);
-      setUser(user);
-      setToken(token);
+      setUser(MOCK_USER);
+      setToken(MOCK_TOKEN);
       localStorage.setItem("auth_status", "authenticated");
-      localStorage.setItem("auth_token", token);
-      localStorage.setItem("user_data", JSON.stringify(user));
-
-      // Store refresh token if provided
-      if (refreshToken) {
-        localStorage.setItem("refresh_token", refreshToken);
-      }
+      localStorage.setItem("auth_token", MOCK_TOKEN);
+      localStorage.setItem("user_data", JSON.stringify(MOCK_USER));
 
       router.push("/dashboard");
     },

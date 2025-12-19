@@ -1,8 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { useAuth } from "@/components/providers/auth-provider";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
 import {
@@ -12,20 +10,12 @@ import {
 
 export default function ReportPage() {
   const [mounted, setMounted] = useState(false);
-  const { isAuthenticated } = useAuth();
-  const router = useRouter();
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  useEffect(() => {
-    if (mounted && !isAuthenticated) {
-      router.push("/login");
-    }
-  }, [mounted, isAuthenticated, router]);
-
-  if (!mounted || !isAuthenticated) {
+  if (!mounted) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">

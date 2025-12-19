@@ -24,7 +24,6 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/animate-ui/components/radix/sidebar";
-import { useAuth } from "@/components/providers/auth-provider";
 
 export function NavUser({
   user,
@@ -36,7 +35,10 @@ export function NavUser({
   };
 }) {
   const { isMobile } = useSidebar();
-  const { logout } = useAuth();
+  
+  const handleLogout = () => {
+    // No-op: authentication removed
+  };
 
   return (
     <SidebarMenu>
@@ -96,7 +98,7 @@ export function NavUser({
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={logout}>
+            <DropdownMenuItem onClick={handleLogout}>
               <IconLogout />
               Log out
             </DropdownMenuItem>

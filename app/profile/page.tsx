@@ -1,8 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { useAuth } from "@/components/providers/auth-provider";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
 import { Button } from "@/components/ui/button";
@@ -21,14 +19,21 @@ import {
   SidebarInset,
   SidebarProvider,
 } from "@/components/animate-ui/components/radix/sidebar";
-import { API_ENDPOINTS, getAuthHeaders } from "@/lib/api";
-
 type ProfileData = {
   id: number;
   email: string;
   mobile_number: string;
   is_active: number;
   roles: string[];
+};
+
+// Mock profile data for static UI
+const MOCK_PROFILE_DATA: ProfileData = {
+  id: 1,
+  email: "admin@example.com",
+  mobile_number: "1234567890",
+  is_active: 1,
+  roles: ["admin", "user"],
 };
 
 export default function ProfilePage() {
@@ -39,8 +44,6 @@ export default function ProfilePage() {
   const [passwordError, setPasswordError] = useState("");
   const [passwordSuccess, setPasswordSuccess] = useState("");
   const [isChangingPassword, setIsChangingPassword] = useState(false);
-  const { isAuthenticated, token } = useAuth();
-  const router = useRouter();
 
   // Password form state
   const [currentPassword, setCurrentPassword] = useState("");
@@ -49,38 +52,19 @@ export default function ProfilePage() {
 
   useEffect(() => {
     setMounted(true);
+    fetchProfile();
   }, []);
-
-  useEffect(() => {
-    if (mounted && !isAuthenticated) {
-      router.push("/login");
-    }
-  }, [mounted, isAuthenticated, router]);
-
-  useEffect(() => {
-    if (mounted && isAuthenticated && token) {
-      fetchProfile();
-    }
-  }, [mounted, isAuthenticated, token]);
 
   const fetchProfile = async () => {
     try {
       setLoading(true);
       setError("");
-      const authToken = localStorage.getItem("auth_token");
+      
+      // Simulate API delay
+      await new Promise((resolve) => setTimeout(resolve, 300));
 
-      const response = await fetch(API_ENDPOINTS.AUTH.PROFILE, {
-        method: "GET",
-        headers: getAuthHeaders(authToken),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        throw new Error(data.message || "Failed to fetch profile");
-      }
-
-      setProfileData(data.data);
+      // Use mock data instead of API call
+      setProfileData(MOCK_PROFILE_DATA);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Failed to load profile data"
@@ -116,40 +100,14 @@ export default function ProfilePage() {
     }
 
     try {
-      const authToken = localStorage.getItem("auth_token");
+      // Simulate API delay
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
-      const response = await fetch(API_ENDPOINTS.AUTH.CHANGE_PASSWORD, {
-        method: "POST",
-        headers: getAuthHeaders(authToken),
-        body: JSON.stringify({
-          current_password: currentPassword,
-          new_password: newPassword,
-          confirm_password: confirmPassword,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        // Handle validation errors
-        if (
-          data.errors &&
-          Array.isArray(data.errors) &&
-          data.errors.length > 0
-        ) {
-          const errorMessages = data.errors
-            .map((err: { message: string }) => err.message)
-            .join(", ");
-          setPasswordError(errorMessages);
-        } else {
-          setPasswordError(data.message || "Failed to change password");
-        }
-      } else {
-        setPasswordSuccess("Password changed successfully!");
-        setCurrentPassword("");
-        setNewPassword("");
-        setConfirmPassword("");
-      }
+      // Mock successful password change
+      setPasswordSuccess("Password changed successfully!");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
     } catch (err) {
       setPasswordError(
         err instanceof Error
@@ -161,7 +119,7 @@ export default function ProfilePage() {
     }
   };
 
-  if (!mounted || !isAuthenticated) {
+  if (!mounted) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
