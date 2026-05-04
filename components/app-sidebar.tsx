@@ -49,43 +49,38 @@ const data = {
       icon: IconDashboard,
     },
     {
+      title: "Farmer Management",
+      url: "/farmer-management",
+      icon: IconUsers,
+    },
+    {
+      title: "Vendor Management",
+      url: "/vendor-management",
+      icon: IconBuilding,
+    },
+    {
+      title: "Delivery Management",
+      url: "/delivery-management",
+      icon: IconListDetails,
+    },
+    {
+      title: "Product Management",
+      url: "/product-management",
+      icon: IconDatabase,
+    },
+    {
       title: "User Management",
       url: "/user-management",
       icon: IconUsers,
     },
     {
-      title: "Branch Management",
-      url: "/branch-management",
-      icon: IconListDetails,
-    },
-    {
-      title: "Department Management",
-      url: "/department-management",
-      icon: IconBuilding,
-    },
-    {
-      title: "Shift Management",
-      url: "/shift-management",
-      icon: IconTiltShift,
-    },
-    {
-      title: "Attendance Management",
-      url: "/attendance-management",
-      icon: IconCalendar,
-    },
-    {
-      title: "Report",
-      url: "/report",
-      icon: IconReport,
+      title: "Admin Management",
+      url: "/admins",
+      icon: IconSettings,
     },
   ],
 
   navSecondary: [
-    {
-      title: "Profile",
-      url: "/profile",
-      icon: IconUser,
-    },
     {
       title: "Settings",
       url: "#",
@@ -95,11 +90,6 @@ const data = {
       title: "Get Help",
       url: "#",
       icon: IconHelp,
-    },
-    {
-      title: "Search",
-      url: "#",
-      icon: IconSearch,
     },
   ],
 };
@@ -116,7 +106,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             >
               <a href="#">
                 <IconInnerShadowTop className="!size-5" />
-                <span className="text-base font-semibold">Pk Sunriso</span>
+                <span className="text-base font-semibold">Apom</span>
               </a>
             </SidebarMenuButton>
           </SidebarMenuItem>

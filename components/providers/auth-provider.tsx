@@ -2,12 +2,14 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
+import * as authService from "@/app/services/authService";
 
 type User = {
-  id: number;
-  email: string;
+  user_id: number;
   mobile_number: string;
-  roles: string[];
+  email: string;
+  role: string;
+  last_login?: string;
 };
 
 type AuthContextType = {
@@ -19,16 +21,6 @@ type AuthContextType = {
 };
 
 const AuthContext = React.createContext<AuthContextType | undefined>(undefined);
-
-// Mock user data for static UI
-const MOCK_USER: User = {
-  id: 1,
-  email: "admin@example.com",
-  mobile_number: "1234567890",
-  roles: ["admin", "user"],
-};
-
-const MOCK_TOKEN = "mock-auth-token-12345";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = React.useState(false);
@@ -62,7 +54,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async (mobile: string, password: string): Promise<void> => {
       const cleanMobile = mobile.replace(/\D/g, ""); // Remove non-digits
 
-      // Basic validation
       if (cleanMobile.length < 10) {
         throw new Error("Please enter a valid mobile number (at least 10 digits)");
       }
@@ -71,19 +62,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw new Error("Please enter your password");
       }
 
-      // Simulate API delay
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      // Mock authentication - accept any valid credentials
-      // Store authentication data
-      setIsAuthenticated(true);
-      setUser(MOCK_USER);
-      setToken(MOCK_TOKEN);
-      localStorage.setItem("auth_status", "authenticated");
-      localStorage.setItem("auth_token", MOCK_TOKEN);
-      localStorage.setItem("user_data", JSON.stringify(MOCK_USER));
-
-      router.push("/dashboard");
+      try {
+        const result = await authService.login(cleanMobile, password);
+        
+        if (result.success && result.data) {
+          const { token, admin } = result.data;
+          
+          setIsAuthenticated(true);
+          setUser(admin);
+          setToken(token);
+          
+          localStorage.setItem("auth_status", "authenticated");
+          localStorage.setItem("auth_token", token);
+          localStorage.setItem("user_data", JSON.stringify(admin));
+          
+          router.push("/dashboard");
+        } else {
+          throw new Error(result.message || "Login failed");
+        }
+      } catch (error: any) {
+        throw new Error(error.response?.data?.message || error.message || "An error occurred during login");
+      }
     },
     [router]
   );

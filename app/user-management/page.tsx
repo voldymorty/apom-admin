@@ -7,6 +7,7 @@ import {
   SidebarInset,
   SidebarProvider,
 } from "@/components/animate-ui/components/radix/sidebar";
+import ProtectedRoute from "../routes/ProtectedRoute";
 
 export default function UserManagementPage() {
   const [mounted, setMounted] = useState(false);
@@ -26,14 +27,15 @@ export default function UserManagementPage() {
   }
 
   return (
-    <SidebarProvider
+    <ProtectedRoute>
+      <SidebarProvider
       style={
         {
           "--sidebar-width": "calc(var(--spacing) * 72)",
           "--header-height": "calc(var(--spacing) * 12)",
         } as React.CSSProperties
       }
-    >
+      >
       <AppSidebar variant="inset" />
       <SidebarInset>
         <SiteHeader />
@@ -51,5 +53,6 @@ export default function UserManagementPage() {
         </div>
       </SidebarInset>
     </SidebarProvider>
+    </ProtectedRoute>
   );
 }

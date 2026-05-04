@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Gabarito } from "next/font/google";
 import { ThemeProvider } from "../components/providers/theme-provider";
+import { AuthProvider } from "../components/providers/auth-provider";
 import "./globals.css";
 
 const gabarito = Gabarito({
@@ -10,8 +11,8 @@ const gabarito = Gabarito({
 });
 
 export const metadata: Metadata = {
-  title: "Pk Sunriso HRMS",
-  description: "Pk Sunriso HRMS",
+  title: "Apom Logistics",
+  description: "Apom Logistics",
 };
 
 export default function RootLayout({
@@ -28,7 +29,9 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {children}
+          <AuthProvider>
+            {children}
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>
