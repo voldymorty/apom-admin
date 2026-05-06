@@ -8,8 +8,8 @@ export const ROUTES = Object.freeze({
   farmerManagement: "/farmer-management",
   vendorManagement: "/vendor-management",
   deliveryManagement: "/delivery-management",
-  report: "/report",
-  userManagement: "/user-management",
+  productManagement: "/product-management",
+  orderManagement: "/order-management",
   admins: "/admins",
 });
 
@@ -20,8 +20,8 @@ export const PROTECTED_ROUTES = Object.freeze([
   ROUTES.farmerManagement,
   ROUTES.vendorManagement,
   ROUTES.deliveryManagement,
-  ROUTES.report,
-  ROUTES.userManagement,
+  ROUTES.productManagement,
+  ROUTES.orderManagement,
   ROUTES.admins,
 ]);
 

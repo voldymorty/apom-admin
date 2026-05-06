@@ -21,6 +21,8 @@ import {
   IconTiltShift,
   IconUser,
   IconUsers,
+  IconShoppingCart,
+  IconShield,
 } from "@tabler/icons-react";
 
 import { NavMain } from "@/components/nav-main";
@@ -69,14 +71,14 @@ const data = {
       icon: IconDatabase,
     },
     {
-      title: "User Management",
-      url: "/user-management",
-      icon: IconUsers,
+      title: "Order Management",
+      url: "/order-management",
+      icon: IconShoppingCart,
     },
     {
       title: "Admin Management",
       url: "/admins",
-      icon: IconSettings,
+      icon: IconShield,
     },
   ],
 
