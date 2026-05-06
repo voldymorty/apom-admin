@@ -10,6 +10,8 @@ export const ROUTES = Object.freeze({
   deliveryManagement: "/delivery-management",
   productManagement: "/product-management",
   orderManagement: "/order-management",
+  pickupsdeliveriesManagement: "/pickups-deliveries-management",
+  notifications: "/notifications",
   admins: "/admins",
 });
 
@@ -22,6 +24,8 @@ export const PROTECTED_ROUTES = Object.freeze([
   ROUTES.deliveryManagement,
   ROUTES.productManagement,
   ROUTES.orderManagement,
+  ROUTES.pickupsdeliveriesManagement,
+  ROUTES.notifications,
   ROUTES.admins,
 ]);
 

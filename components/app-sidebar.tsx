@@ -23,6 +23,8 @@ import {
   IconUsers,
   IconShoppingCart,
   IconShield,
+  IconTruckDelivery,
+  IconBell,
 } from "@tabler/icons-react";
 
 import { NavMain } from "@/components/nav-main";
@@ -74,6 +76,16 @@ const data = {
       title: "Order Management",
       url: "/order-management",
       icon: IconShoppingCart,
+    },
+    {
+      title: "Pickups & Deliveries",
+      url: "/pickups-deliveries-management",
+      icon: IconTruckDelivery,
+    },
+    {
+      title: "Notifications",
+      url: "/notifications",
+      icon: IconBell,
     },
     {
       title: "Admin Management",
