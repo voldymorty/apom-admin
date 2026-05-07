@@ -1128,7 +1128,13 @@ function TaskDetailSheet({
                         </div>
                       </div>
                     )}
-
+{STATUS_FLOW[task.status]?.filter(
+                      (s) => s !== "cancelled"
+                    ).length === 0 && (
+                      <p className="text-xs text-muted-foreground font-medium">
+                        No further actions available:DELIVERY COMPLETED
+                      </p>
+                    )}
                     {!NON_CANCELLABLE.includes(task.status) && (
                       <div className="pt-1 border-t border-border/60">
                         {!showCancelForm ? (

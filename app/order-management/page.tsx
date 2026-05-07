@@ -498,6 +498,12 @@ function OrderDetailSheet({
                       </div>
                     </div>
                   )}
+                  {
+                  STATUS_FLOW[order.order_status]?.length === 0 && (
+                    <p className="text-sm text-muted-foreground">
+                      No further status changes available: Order is {ORDER_STATUS_CONFIG[order.order_status]?.label ?? order.order_status}.
+                    </p>
+                  )}
 
                   {!NON_CANCELLABLE.includes(order.order_status) && (
                     <div className="pt-1 border-t border-border/60">

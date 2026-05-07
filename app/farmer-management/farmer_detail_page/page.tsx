@@ -659,8 +659,8 @@ export default function FarmerDetailPage() {
                   size="sm"
                   className={
                     normalized.isActive
-                      ? "border-amber-200 text-amber-700 hover:bg-amber-50"
-                      : "border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                      ? "border-amber-200 text-amber-700 hover:bg-red-800"
+                      : "border-emerald-200 text-emerald-700 hover:bg-emerald-800"
                   }
                   onClick={handleToggleStatus}
                   disabled={statusLoading || loading || !farmer}
@@ -675,7 +675,7 @@ export default function FarmerDetailPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="border-red-200 text-red-600 hover:bg-red-50"
+                  className="border-red-200 text-red-600 hover:bg-red-600"
                   onClick={handleDelete}
                   disabled={deleteLoading || loading || !farmer}
                 >

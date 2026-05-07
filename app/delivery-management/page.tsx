@@ -691,8 +691,8 @@ export default function EmployeeLogisticsManagement() {
                               <DropdownMenuItem
                                 className={
                                   person.isActive
-                                    ? "text-amber-700 focus:text-amber-700 cursor-pointer"
-                                    : "text-emerald-700 focus:text-emerald-700 cursor-pointer"
+                                    ? "text-amber-700 focus:text-amber-700 cursor-pointer hover:!bg-red-700 hover:!text-white"
+                                    : "text-emerald-700 focus:text-emerald-700 cursor-pointer hover:!text-white"
                                 }
                                 onClick={() => handleToggleStatus(person)}
                                 disabled={statusUpdatingId === person.id}
@@ -705,7 +705,7 @@ export default function EmployeeLogisticsManagement() {
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem
-                                className="text-destructive focus:text-destructive cursor-pointer"
+                                className="text-destructive focus:text-destructive cursor-pointer hover:!bg-red-700 hover:!text-white"
                                 onClick={() =>
                                   setDeleteTarget({
                                     id: person.id,
@@ -714,7 +714,7 @@ export default function EmployeeLogisticsManagement() {
                                   })
                                 }
                               >
-                                <IconTrash className="mr-2 size-4" />
+                                <IconTrash className="mr-2 size-4 hover:text-white" />
                                 Delete
                               </DropdownMenuItem>
                             </DropdownMenuContent>

@@ -385,7 +385,7 @@ export default function DeliveryDetailPage() {
                         </Button>
                         <Button
                           variant="outline"
-                          className="w-full gap-2 justify-start text-destructive hover:text-destructive hover:border-destructive/40"
+                          className="w-full gap-2 justify-start text-destructive hover:text-destructive hover:border-destructive/40 hover:bg-red-600 hover:text-white"
                           onClick={() => setIsDeleteOpen(true)}
                         >
                           <IconTrash className="size-4" />
