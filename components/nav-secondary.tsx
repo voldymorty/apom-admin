@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import * as React from "react";
 import { type Icon } from "@tabler/icons-react";
-
+import { useRouter } from "next/navigation";
 import {
   SidebarGroup,
   SidebarGroupContent,
@@ -12,6 +12,10 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/animate-ui/components/radix/sidebar";
+import { useContext } from "react";
+
+import { useAuth } from "@/components/providers/auth-provider";
+
 
 export function NavSecondary({
   items,
@@ -24,21 +28,29 @@ export function NavSecondary({
   }[];
 } & React.ComponentPropsWithoutRef<typeof SidebarGroup>) {
   const pathname = usePathname();
+  const router = useRouter();
+  const { logout } = useAuth();;
+
+   function LogOut(value:any){
+   if(value === "Log out"){
+  logout();
+   }
+  };
 
   return (
     <SidebarGroup {...props}>
       <SidebarGroupContent>
         <SidebarMenu>
           {items.map((item) => (
-            <SidebarMenuItem key={item.title}>
-              <SidebarMenuButton asChild isActive={pathname === item.url}>
+            <SidebarMenuItem  key={item.title}>
+              <SidebarMenuButton className={item.title == "Log out"? "duration-150 hover:text-red-500":""} asChild isActive={pathname === item.url}>
                 {item.url === "#" ? (
-                  <a href={item.url}>
+                  <a href={item.title == "Log out"?"":item.url}>
                     <item.icon />
-                    <span>{item.title}</span>
+                    <span onClick={()=>{LogOut(item.title)}} >{item.title}</span>
                   </a>
                 ) : (
-                  <Link href={item.url}>
+                  <Link href={item.title == "Log out"?"":item.url}>
                     <item.icon />
                     <span>{item.title}</span>
                   </Link>

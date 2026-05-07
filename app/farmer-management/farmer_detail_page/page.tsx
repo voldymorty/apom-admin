@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { AppSidebar } from "@/components/app-sidebar";
@@ -31,6 +31,9 @@ import {
   IconEdit,
   IconTrash,
   IconPower,
+  IconSearch,
+  IconX,
+  IconChevronDown,
 } from "@tabler/icons-react";
 import { toast } from "sonner";
 import ProtectedRoute from "../../routes/ProtectedRoute";
@@ -43,8 +46,11 @@ interface EditForm {
   farm_name: string;
   location_address: string;
   state_id: string;
+  state_name: string;
   district_id: string;
+  district_name: string;
   city_id: string;
+  city_name: string;
   pincode: string;
   latitude: string;
   longitude: string;
@@ -52,6 +58,174 @@ interface EditForm {
   land_unit: string;
   email: string;
   is_verified: boolean;
+}
+
+interface LocationOption {
+  id: string;
+  name: string;
+}
+
+// ─── LocationSearchField component ───────────────────────────────────────────
+
+function LocationSearchField({
+  label,
+  id,
+  value,
+  onSelect,
+  fetchOptions,
+  disabled = false,
+  placeholder = "Search...",
+}: {
+  label: string;
+  id: string;
+  value: string;
+  onSelect: (option: LocationOption) => void;
+  fetchOptions: (query: string) => Promise<LocationOption[]>;
+  disabled?: boolean;
+  placeholder?: string;
+}) {
+  const [query, setQuery] = useState(value);
+  const [options, setOptions] = useState<LocationOption[]>([]);
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [selected, setSelected] = useState(value);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  // Sync external value
+  useEffect(() => {
+    setQuery(value);
+    setSelected(value);
+  }, [value]);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setQuery(val);
+    setSelected("");
+
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (!val.trim()) {
+      setOptions([]);
+      setOpen(false);
+      return;
+    }
+    debounceRef.current = setTimeout(async () => {
+      setLoading(true);
+      try {
+        const results = await fetchOptions(val);
+        setOptions(results);
+        setOpen(true);
+      } catch {
+        setOptions([]);
+      } finally {
+        setLoading(false);
+      }
+    }, 300);
+  };
+
+  const handleSelect = (option: LocationOption) => {
+    setQuery(option.name);
+    setSelected(option.name);
+    setOpen(false);
+    setOptions([]);
+    onSelect(option);
+  };
+
+  const handleClear = () => {
+    setQuery("");
+    setSelected("");
+    setOptions([]);
+    setOpen(false);
+    onSelect({ id: "", name: "" });
+  };
+
+  return (
+    <div className="grid gap-1.5" ref={wrapperRef}>
+      <Label
+        htmlFor={id}
+        className="text-xs uppercase tracking-widest text-muted-foreground"
+      >
+        {label}
+      </Label>
+      <div className="relative">
+        <div className="pointer-events-none absolute inset-y-0 left-3 flex items-center">
+          {loading ? (
+            <span className="size-4 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
+          ) : (
+            <IconSearch className="size-4 text-muted-foreground" />
+          )}
+        </div>
+        <Input
+          id={id}
+          type="text"
+          value={query}
+          onChange={handleInputChange}
+          onFocus={() => {
+            if (options.length > 0) setOpen(true);
+          }}
+          disabled={disabled}
+          placeholder={disabled ? "Select a parent first" : placeholder}
+          className="bg-white dark:bg-card pl-9 pr-8"
+          autoComplete="off"
+        />
+        {query && (
+          <button
+            type="button"
+            onClick={handleClear}
+            className="absolute inset-y-0 right-2 flex items-center px-1 text-muted-foreground hover:text-foreground"
+            tabIndex={-1}
+          >
+            <IconX className="size-3.5" />
+          </button>
+        )}
+
+        {open && options.length > 0 && (
+          <div className="absolute z-50 mt-1 w-full rounded-lg border border-border bg-white dark:bg-card shadow-lg max-h-52 overflow-y-auto">
+            {options.map((opt) => (
+              <button
+                key={opt.id}
+                type="button"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  handleSelect(opt);
+                }}
+                className="flex w-full items-center gap-2 px-3 py-2 text-sm text-left hover:bg-muted/60 transition-colors"
+              >
+                {/* <span className="text-muted-foreground text-xs font-mono w-8 shrink-0">
+                  #{opt.id}
+                </span> */}
+                <span className="font-medium truncate">{opt.name}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {open && !loading && options.length === 0 && query.trim() && (
+          <div className="absolute z-50 mt-1 w-full rounded-lg border border-border bg-white dark:bg-card shadow-lg px-3 py-3 text-sm text-muted-foreground">
+            No results found for &ldquo;{query}&rdquo;
+          </div>
+        )}
+      </div>
+
+      {selected && (
+        <p className="text-xs text-emerald-600 flex items-center gap-1">
+          <IconChevronDown className="size-3 rotate-[-90deg]" />
+          Selected: <span className="font-semibold">{selected}</span>
+        </p>
+      )}
+    </div>
+  );
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -73,8 +247,11 @@ export default function FarmerDetailPage() {
     farm_name: "",
     location_address: "",
     state_id: "",
+    state_name: "",
     district_id: "",
+    district_name: "",
     city_id: "",
+    city_name: "",
     pincode: "",
     latitude: "",
     longitude: "",
@@ -130,8 +307,11 @@ export default function FarmerDetailPage() {
         farm_name: data?.farm_name ?? "",
         location_address: data?.location_address ?? "",
         state_id: String(data?.state?.state_id ?? data?.state_id ?? ""),
+        state_name: data?.state?.state_name ?? data?.state_name ?? "",
         district_id: String(data?.district?.district_id ?? data?.district_id ?? ""),
+        district_name: data?.district?.district_name ?? data?.district_name ?? "",
         city_id: String(data?.city?.city_id ?? data?.city_id ?? ""),
+        city_name: data?.city?.city_name ?? data?.city_name ?? "",
         pincode: data?.pincode ?? "",
         latitude: String(data?.latitude ?? ""),
         longitude: String(data?.longitude ?? ""),
@@ -262,6 +442,53 @@ export default function FarmerDetailPage() {
     };
     fetch();
   }, [farmerId]);
+
+  // ── Location API fetchers ──────────────────────────────────────────────────
+
+  const fetchStates = useCallback(async (query: string): Promise<LocationOption[]> => {
+    const res = await api.get("/location/states", { params: { search: query } });
+    const data = res.data?.data ?? res.data;
+    const list: any[] = Array.isArray(data) ? data : data?.states ?? [];
+    return list
+      .filter((s: any) =>
+        (s.state_name ?? "").toLowerCase().includes(query.toLowerCase())
+      )
+      .map((s: any) => ({ id: String(s.state_id), name: s.state_name }));
+  }, []);
+
+  const fetchDistricts = useCallback(
+    async (query: string): Promise<LocationOption[]> => {
+      if (!editForm.state_id) return [];
+      const res = await api.get("/location/districts", {
+        params: { search: query, state_id: editForm.state_id },
+      });
+      const data = res.data?.data ?? res.data;
+      const list: any[] = Array.isArray(data) ? data : data?.districts ?? [];
+      return list
+        .filter((d: any) =>
+          (d.district_name ?? "").toLowerCase().includes(query.toLowerCase())
+        )
+        .map((d: any) => ({ id: String(d.district_id), name: d.district_name }));
+    },
+    [editForm.state_id]
+  );
+
+  const fetchCities = useCallback(
+    async (query: string): Promise<LocationOption[]> => {
+      if (!editForm.district_id) return [];
+      const res = await api.get("/location/cities", {
+        params: { search: query, district_id: editForm.district_id },
+      });
+      const data = res.data?.data ?? res.data;
+      const list: any[] = Array.isArray(data) ? data : data?.cities ?? [];
+      return list
+        .filter((c: any) =>
+          (c.city_name ?? "").toLowerCase().includes(query.toLowerCase())
+        )
+        .map((c: any) => ({ id: String(c.city_id), name: c.city_name }));
+    },
+    [editForm.district_id]
+  );
 
   // ── Actions ────────────────────────────────────────────────────────────────
 
@@ -1238,7 +1465,7 @@ export default function FarmerDetailPage() {
               Update farmer details. Click save when done.
             </SheetDescription>
           </SheetHeader>
-          <form onSubmit={handleEditSubmit} className="mt-6 space-y-4">
+          <form onSubmit={handleEditSubmit} className="mt-6 space-y-4 px-4">
             <div className="grid gap-3">
               <FormField
                 label="Full Name"
@@ -1274,31 +1501,65 @@ export default function FarmerDetailPage() {
                 value={editForm.pincode}
                 onChange={(v) => setEditForm((f) => ({ ...f, pincode: v }))}
               />
-              <div className="grid grid-cols-2 gap-3">
-                <FormField
-                  label="State ID"
-                  id="state_id"
-                  type="number"
-                  value={editForm.state_id}
-                  onChange={(v) => setEditForm((f) => ({ ...f, state_id: v }))}
-                />
-                <FormField
-                  label="District ID"
-                  id="district_id"
-                  type="number"
-                  value={editForm.district_id}
-                  onChange={(v) =>
-                    setEditForm((f) => ({ ...f, district_id: v }))
-                  }
-                />
-              </div>
-              <FormField
-                label="City ID"
-                id="city_id"
-                type="number"
-                value={editForm.city_id}
-                onChange={(v) => setEditForm((f) => ({ ...f, city_id: v }))}
+
+              {/* ── Searchable State ── */}
+              <LocationSearchField
+                label="State"
+                id="state"
+                value={editForm.state_name}
+                placeholder="Search state..."
+                fetchOptions={fetchStates}
+                onSelect={(opt) =>
+                  setEditForm((f) => ({
+                    ...f,
+                    state_id: opt.id,
+                    state_name: opt.name,
+                    // Reset dependent fields when state changes
+                    district_id: "",
+                    district_name: "",
+                    city_id: "",
+                    city_name: "",
+                  }))
+                }
               />
+
+              {/* ── Searchable District (requires state) ── */}
+              <LocationSearchField
+                label="District"
+                id="district"
+                value={editForm.district_name}
+                placeholder="Search district..."
+                disabled={!editForm.state_id}
+                fetchOptions={fetchDistricts}
+                onSelect={(opt) =>
+                  setEditForm((f) => ({
+                    ...f,
+                    district_id: opt.id,
+                    district_name: opt.name,
+                    // Reset city when district changes
+                    city_id: "",
+                    city_name: "",
+                  }))
+                }
+              />
+
+              {/* ── Searchable City (requires district) ── */}
+              <LocationSearchField
+                label="City"
+                id="city"
+                value={editForm.city_name}
+                placeholder="Search city..."
+                disabled={!editForm.district_id}
+                fetchOptions={fetchCities}
+                onSelect={(opt) =>
+                  setEditForm((f) => ({
+                    ...f,
+                    city_id: opt.id,
+                    city_name: opt.name,
+                  }))
+                }
+              />
+
               <div className="grid grid-cols-2 gap-3">
                 <FormField
                   label="Latitude"
@@ -1606,7 +1867,6 @@ function normalizeCrop(raw: any, index: number) {
   const status = raw?.status ?? "--";
   const statusLabel = String(status).replaceAll("_", " ");
   const isReady = Boolean(raw?.is_ready);
-  // Partition info from nested partition object in crops API response
   const partitionName =
     raw?.partition?.crop_name ?? raw?.partition?.partition_name ?? "--";
 
@@ -1699,19 +1959,11 @@ function normalizeBankDetails(raw: any) {
   };
 }
 
-/**
- * Normalizes a land partition using the actual API response fields:
- * partition_id, crop_name (used as the partition label), partition_size_acres,
- * planting_date, expected_harvest_date, actual_harvest_date,
- * expected_yield_kg, actual_yield_kg, current_status, notes, created_at
- */
 function normalizePartition(raw: any, index: number) {
   const id = raw?.partition_id ?? raw?.id ?? `partition-${index + 1}`;
-  // The API uses crop_name as the partition label (e.g. "North Field")
   const name = raw?.crop_name ?? raw?.partition_name ?? raw?.name ?? `Partition ${index + 1}`;
   const areaValue = toNumber(raw?.partition_size_acres) ?? toNumber(raw?.area) ?? null;
-  const areaLabel =
-    areaValue !== null ? `${areaValue} Acres` : "--";
+  const areaLabel = areaValue !== null ? `${areaValue} Acres` : "--";
   const status = raw?.current_status ?? raw?.status ?? "--";
   const cropName = raw?.crop_name ?? "--";
   const plantingDate = raw?.planting_date

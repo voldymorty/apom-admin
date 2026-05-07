@@ -204,7 +204,7 @@ export default function AdminsManagementPage() {
     if (!window.confirm("WARNING: This will permanently delete the admin. Are you sure?")) return;
 
     try {
-      await api.delete(`/admin/${id}/force`);
+      await api.delete(`/admin/auth/${id}/hard`);
       await fetchAdmins();
       toast.success("Permanently Deleted", {
         description: "Admin has been permanently removed.",

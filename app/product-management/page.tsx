@@ -7,6 +7,7 @@ import {
   SidebarInset,
   SidebarProvider,
 } from "@/components/animate-ui/components/radix/sidebar";
+import * as RadioGroup from "@radix-ui/react-radio-group"
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -68,7 +69,7 @@ import ProtectedRoute from "../routes/ProtectedRoute";
 import api from "@/app/services/api";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-
+export const imgURL = "http://172.16.0.227:5000";
 const GRADES = ["A", "B", "C"] as const;
 type Grade = (typeof GRADES)[number];
 
@@ -151,6 +152,7 @@ export default function ProductPage() {
                 Manage products, categories, inventory and pricing.
               </p>
             </div>
+            {/* ── Only two tabs now — Inventory & Pricing live inside the Products accordion ── */}
             <Tabs defaultValue="categories" className="w-full">
               <TabsList className="mb-2">
                 <TabsTrigger value="categories" className="gap-2">
@@ -159,12 +161,6 @@ export default function ProductPage() {
                 <TabsTrigger value="products" className="gap-2">
                   <IconPackage className="size-4" /> Products
                 </TabsTrigger>
-                <TabsTrigger value="inventory" className="gap-2">
-                  <IconTag className="size-4" /> Inventory
-                </TabsTrigger>
-                <TabsTrigger value="pricing" className="gap-2">
-                  <IconCurrencyRupee className="size-4" /> Pricing
-                </TabsTrigger>
               </TabsList>
 
               <TabsContent value="categories">
@@ -172,12 +168,6 @@ export default function ProductPage() {
               </TabsContent>
               <TabsContent value="products">
                 <ProductsTab />
-              </TabsContent>
-              <TabsContent value="inventory">
-                <InventoryTab />
-              </TabsContent>
-              <TabsContent value="pricing">
-                <PricingTab />
               </TabsContent>
             </Tabs>
           </div>
@@ -188,7 +178,7 @@ export default function ProductPage() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// CATEGORIES TAB
+// CATEGORIES TAB  (unchanged)
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function CategoriesTab() {
@@ -196,12 +186,10 @@ function CategoriesTab() {
   const [loading, setLoading] = useState(false);
   const [filterActive, setFilterActive] = useState<"all" | "active" | "inactive">("all");
 
-  // Sheet state
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<any | null>(null);
   const [saving, setSaving] = useState(false);
 
-  // Form state
   const [form, setForm] = useState({
     category_name: "",
     category_code: "",
@@ -210,6 +198,7 @@ function CategoriesTab() {
     is_active: true,
   });
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imgerr, setimgerr] = useState<Boolean>(false);
   const [iconFile, setIconFile] = useState<File | null>(null);
   const imageRef = useRef<HTMLInputElement>(null);
   const iconRef = useRef<HTMLInputElement>(null);
@@ -267,7 +256,6 @@ function CategoriesTab() {
       if (form.display_order) fd.append("display_order", form.display_order);
       if (imageFile) fd.append("image", imageFile);
       if (iconFile) fd.append("icon", iconFile);
-
       if (editTarget) {
         fd.append("is_active", String(form.is_active));
         await api.put(`/admin/products/categories/${editTarget.category_id}`, fd);
@@ -294,6 +282,19 @@ function CategoriesTab() {
     } catch (err: any) {
       toast.error(err.response?.data?.message ?? "Failed to deactivate");
     }
+  };
+
+  const handleimgerror = (value: any) => {
+    const allowedExtensions = ["jpg", "jpeg", "png"];
+    const fileName = value.name.toLowerCase();
+    const fileExtension = fileName.split(".").pop();
+    if (!allowedExtensions.includes(fileExtension)) {
+      toast.error("Only JPG, JPEG, PNG images are allowed");
+      setimgerr(true);
+      return;
+    }
+    setImageFile(value);
+    setimgerr(false);
   };
 
   const filtered = useMemo(() => {
@@ -334,6 +335,7 @@ function CategoriesTab() {
             <TableHeader>
               <TableRow className="bg-muted/50 hover:bg-muted/50">
                 <TableHead className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">S.No</TableHead>
+                <TableHead className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Category image</TableHead>
                 <TableHead className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Category</TableHead>
                 <TableHead className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Code</TableHead>
                 <TableHead className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Description</TableHead>
@@ -355,6 +357,7 @@ function CategoriesTab() {
                 filtered.map((cat, i) => (
                   <TableRow key={cat.category_id} className="group hover:bg-primary/5 border-b last:border-0">
                     <TableCell className="px-4 py-3 text-muted-foreground">{i + 1}</TableCell>
+                    <TableCell className="px-4 py-3 font-semibold"><img src={`${imgURL}${cat.image_url}`} className="h-20 w-25" alt="cat.img" /></TableCell>
                     <TableCell className="px-4 py-3 font-semibold">{cat.category_name}</TableCell>
                     <TableCell className="px-4 py-3">
                       <Badge variant="outline" className="font-mono text-xs">{cat.category_code}</Badge>
@@ -384,7 +387,6 @@ function CategoriesTab() {
         </div>
       </Card>
 
-      {/* Create / Edit Sheet */}
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
         <SheetContent className="w-full sm:max-w-md overflow-y-auto">
           <SheetHeader>
@@ -393,85 +395,30 @@ function CategoriesTab() {
               {editTarget ? "Update category details below." : "Fill in the details to create a new category."}
             </SheetDescription>
           </SheetHeader>
-          <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+          <form onSubmit={handleSubmit} className="mt-6 space-y-4 px-4">
             <FormField label="Category Name *" id="cat_name">
-              <Input
-                id="cat_name"
-                value={form.category_name}
-                onChange={(e) => setForm((f) => ({ ...f, category_name: e.target.value }))}
-                placeholder="e.g. Vegetables"
-                required
-              />
+              <Input id="cat_name" value={form.category_name} onChange={(e) => setForm((f) => ({ ...f, category_name: e.target.value }))} placeholder="e.g. Vegetables" required />
             </FormField>
             <FormField label="Category Code *" id="cat_code">
-              <Input
-                id="cat_code"
-                value={form.category_code}
-                onChange={(e) => setForm((f) => ({ ...f, category_code: e.target.value.toUpperCase() }))}
-                placeholder="e.g. VEG"
-                required
-              />
+              <Input id="cat_code" value={form.category_code} onChange={(e) => setForm((f) => ({ ...f, category_code: e.target.value.toUpperCase() }))} placeholder="e.g. VEG" required />
             </FormField>
             <FormField label="Description" id="cat_desc">
-              <Textarea
-                id="cat_desc"
-                value={form.description}
-                onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-                placeholder="Optional description"
-                rows={3}
-              />
+              <Textarea id="cat_desc" value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} placeholder="Optional description" rows={3} />
             </FormField>
             <FormField label="Display Order" id="cat_order">
-              <Input
-                id="cat_order"
-                type="number"
-                min={0}
-                value={form.display_order}
-                onChange={(e) => setForm((f) => ({ ...f, display_order: e.target.value }))}
-                placeholder="e.g. 1"
-              />
+              <Input id="cat_order" type="number" min={0} value={form.display_order} onChange={(e) => setForm((f) => ({ ...f, display_order: e.target.value }))} placeholder="e.g. 1" />
             </FormField>
             <FormField label="Category Image" id="cat_image">
               <div className="flex items-center gap-3">
-                <input
-                  ref={imageRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
-                />
-                <Button type="button" variant="outline" size="sm" onClick={() => imageRef.current?.click()}>
-                  Choose Image
-                </Button>
-                <span className="text-sm text-muted-foreground truncate max-w-[180px]">
-                  {imageFile ? imageFile.name : "No file chosen"}
-                </span>
+                <input ref={imageRef} type="file" accept="image/*" className="hidden" onChange={(e) => handleimgerror(e.target.files?.[0] ?? null)} />
+                <Button type="button" variant="outline" size="sm" onClick={() => imageRef.current?.click()}>Choose Image</Button>
+                <span className="text-sm text-muted-foreground truncate max-w-[180px]">{imageFile ? imageFile.name : "No file chosen"}</span>
               </div>
-            </FormField>
-            <FormField label="Category Icon" id="cat_icon">
-              <div className="flex items-center gap-3">
-                <input
-                  ref={iconRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => setIconFile(e.target.files?.[0] ?? null)}
-                />
-                <Button type="button" variant="outline" size="sm" onClick={() => iconRef.current?.click()}>
-                  Choose Icon
-                </Button>
-                <span className="text-sm text-muted-foreground truncate max-w-[180px]">
-                  {iconFile ? iconFile.name : "No file chosen"}
-                </span>
-              </div>
+              {imgerr && <div><span className="text-sm text-red-600">Only JPG, JPEG, PNG images are allowed</span></div>}
             </FormField>
             {editTarget && (
               <div className="flex items-center gap-3">
-                <Switch
-                  id="cat_active"
-                  checked={form.is_active}
-                  onCheckedChange={(v) => setForm((f) => ({ ...f, is_active: v }))}
-                />
+                <Switch id="cat_active" checked={form.is_active} onCheckedChange={(v) => setForm((f) => ({ ...f, is_active: v }))} />
                 <Label htmlFor="cat_active">Active</Label>
               </div>
             )}
@@ -487,10 +434,11 @@ function CategoriesTab() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// PRODUCTS TAB
+// PRODUCTS TAB  — now includes Inventory + Pricing inline accordion
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function ProductsTab() {
+  // ── Product list state ─────────────────────────────────────────────────────
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -504,17 +452,61 @@ function ProductsTab() {
   const [totalItems, setTotalItems] = useState<number | null>(null);
   const limit = 10;
 
-  // Sheet
+  // ── Accordion expanded rows: productId → { detail, loading } ──────────────
+  const [expandedRows, setExpandedRows] = useState<
+    Record<number, { detail: any | null; loading: boolean }>
+  >({});
+
+  // ── Low stock (from InventoryTab) ──────────────────────────────────────────
+  const [lowStock, setLowStock] = useState<any[]>([]);
+  const [lowStockCount, setLowStockCount] = useState(0);
+
+  // ── Create / Edit product sheet ────────────────────────────────────────────
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<any | null>(null);
   const [saving, setSaving] = useState(false);
 
-  // Detail sheet
-  const [detailOpen, setDetailOpen] = useState(false);
-  const [detailProduct, setDetailProduct] = useState<any | null>(null);
-  const [detailLoading, setDetailLoading] = useState(false);
+  // ── Stock Adjustment sheet (from InventoryTab) ─────────────────────────────
+  const [adjustOpen, setAdjustOpen] = useState(false);
+  const [adjustProduct, setAdjustProduct] = useState<any | null>(null);
+  const [adjustLoadingProduct, setAdjustLoadingProduct] = useState(false);
+  const [selectedGrade, setSelectedGrade] = useState<Grade>("A");
+  const [adjustForm, setAdjustForm] = useState({
+    transaction_type: "stock_in",
+    quantity_kg: "",
+    reference_type: "manual",
+    reference_id: "",
+    warehouse_location: "",
+    minimum_stock_alert: "",
+    remarks: "",
+  });
+  const [adjustSaving, setAdjustSaving] = useState(false);
 
-  // Product form
+  // ── Transaction History sheet (from InventoryTab) ──────────────────────────
+  const [txOpen, setTxOpen] = useState(false);
+  const [txInventoryId, setTxInventoryId] = useState<number | null>(null);
+  const [txProductName, setTxProductName] = useState("");
+  const [txGrade, setTxGrade] = useState("");
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [txLoading, setTxLoading] = useState(false);
+  const [txPage, setTxPage] = useState(1);
+  const [txTotalPages, setTxTotalPages] = useState<number | null>(null);
+
+  // ── Add Pricing sheet (from PricingTab) ────────────────────────────────────
+  const [pricingSheetOpen, setPricingSheetOpen] = useState(false);
+  const [pricingSaving, setPricingSaving] = useState(false);
+  const [pricingForm, setPricingForm] = useState({
+    product_id: "",
+    grade: "A" as Grade,
+    base_price_per_kg: "",
+    wholesale_price_per_kg: "",
+    retail_price_per_kg: "",
+    minimum_order_kg: "10",
+    effective_from: "",
+    effective_to: "",
+  });
+
+  // ── Product create/edit form ───────────────────────────────────────────────
   const emptyProductForm = () => ({
     category_id: "",
     product_name: "",
@@ -538,20 +530,31 @@ function ProductsTab() {
   });
 
   const [form, setForm] = useState(emptyProductForm());
+  const [imgerr, setimgerr] = useState<Boolean>(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const imageRef = useRef<HTMLInputElement>(null);
 
-  // Debounce
+  // ── Debounce search ────────────────────────────────────────────────────────
   useEffect(() => {
     const t = setTimeout(() => { setDebouncedSearch(search.trim()); setPage(1); }, 400);
     return () => clearTimeout(t);
   }, [search]);
 
+  // ── Fetchers ───────────────────────────────────────────────────────────────
   const fetchCategories = useCallback(async () => {
     try {
       const res = await api.get("/admin/products/categories", { params: { is_active: true } });
       const data = res.data?.data ?? res.data;
       setCategories(Array.isArray(data?.categories) ? data.categories : []);
+    } catch { /* silent */ }
+  }, []);
+
+  const fetchLowStock = useCallback(async () => {
+    try {
+      const res = await api.get("/admin/inventory/low-stock");
+      const data = res.data?.data ?? res.data;
+      setLowStock(Array.isArray(data?.inventory) ? data.inventory : []);
+      setLowStockCount(data?.count ?? 0);
     } catch { /* silent */ }
   }, []);
 
@@ -568,6 +571,8 @@ function ProductsTab() {
       setProducts(Array.isArray(data?.products) ? data.products : []);
       setTotalPages(data?.pagination?.total_pages ?? null);
       setTotalItems(data?.pagination?.total ?? null);
+      // Collapse all expanded rows when the page changes
+      setExpandedRows({});
     } catch (err: any) {
       toast.error(err.response?.data?.message ?? "Failed to fetch products");
     } finally {
@@ -575,9 +580,47 @@ function ProductsTab() {
     }
   }, [page, limit, debouncedSearch, categoryFilter, activeFilter, seasonalFilter]);
 
-  useEffect(() => { fetchCategories(); }, [fetchCategories]);
+  useEffect(() => { fetchCategories(); fetchLowStock(); }, [fetchCategories, fetchLowStock]);
   useEffect(() => { fetchProducts(); }, [fetchProducts]);
 
+  // ── Accordion toggle ───────────────────────────────────────────────────────
+  const toggleRow = async (productId: number) => {
+    // If already expanded, collapse it
+    if (expandedRows[productId]) {
+      setExpandedRows((prev) => {
+        const next = { ...prev };
+        delete next[productId];
+        return next;
+      });
+      return;
+    }
+    // Mark as loading
+    setExpandedRows((prev) => ({ ...prev, [productId]: { detail: null, loading: true } }));
+    try {
+      const res = await api.get(`/admin/products/${productId}`);
+      const detail = res.data?.data ?? res.data;
+      setExpandedRows((prev) => ({ ...prev, [productId]: { detail, loading: false } }));
+    } catch (err: any) {
+      toast.error(err.response?.data?.message ?? "Failed to load product details");
+      setExpandedRows((prev) => {
+        const next = { ...prev };
+        delete next[productId];
+        return next;
+      });
+    }
+  };
+
+  // Helper: refresh the detail for an already-expanded row after mutations
+  const refreshExpandedRow = async (productId: number) => {
+    if (!expandedRows[productId]) return;
+    try {
+      const res = await api.get(`/admin/products/${productId}`);
+      const detail = res.data?.data ?? res.data;
+      setExpandedRows((prev) => ({ ...prev, [productId]: { detail, loading: false } }));
+    } catch { /* silent */ }
+  };
+
+  // ── Product create / edit ──────────────────────────────────────────────────
   const openCreate = () => {
     setEditTarget(null);
     setForm(emptyProductForm());
@@ -604,20 +647,6 @@ function ProductsTab() {
     setSheetOpen(true);
   };
 
-  const openDetail = async (product: any) => {
-    setDetailOpen(true);
-    setDetailProduct(null);
-    setDetailLoading(true);
-    try {
-      const res = await api.get(`/admin/products/${product.product_id}`);
-      setDetailProduct(res.data?.data ?? res.data);
-    } catch (err: any) {
-      toast.error(err.response?.data?.message ?? "Failed to fetch product details");
-    } finally {
-      setDetailLoading(false);
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.category_id) { toast.error("Category is required"); return; }
@@ -639,7 +668,6 @@ function ProductsTab() {
       if (imageFile) fd.append("image", imageFile);
 
       if (!editTarget) {
-        // Build inventory & pricing JSON arrays for create
         const inventoryArr = GRADES
           .filter((g) => form.inventory[g].available_quantity_kg !== "")
           .map((g) => ({
@@ -648,18 +676,17 @@ function ProductsTab() {
             warehouse_location: form.inventory[g].warehouse_location || undefined,
             minimum_stock_alert: form.inventory[g].minimum_stock_alert ? Number(form.inventory[g].minimum_stock_alert) : 20,
           }));
-          // AFTER — all pricing fields included
-          const pricingArr = GRADES
-            .filter((g) => form.pricing[g].base_price_per_kg !== "" && form.pricing[g].effective_from !== "")
-            .map((g) => ({
-              grade: g,
-              base_price_per_kg: Number(form.pricing[g].base_price_per_kg),
-              wholesale_price_per_kg: Number(form.pricing[g].wholesale_price_per_kg),
-              ...(form.pricing[g].retail_price_per_kg ? { retail_price_per_kg: Number(form.pricing[g].retail_price_per_kg) } : {}),
-              minimum_order_kg: Number(form.pricing[g].minimum_order_kg) || 10,
-              effective_from: form.pricing[g].effective_from,
-              ...(form.pricing[g].effective_to ? { effective_to: form.pricing[g].effective_to } : {}),
-            }));
+        const pricingArr = GRADES
+          .filter((g) => form.pricing[g].base_price_per_kg !== "" && form.pricing[g].effective_from !== "")
+          .map((g) => ({
+            grade: g,
+            base_price_per_kg: Number(form.pricing[g].base_price_per_kg),
+            wholesale_price_per_kg: Number(form.pricing[g].wholesale_price_per_kg),
+            ...(form.pricing[g].retail_price_per_kg ? { retail_price_per_kg: Number(form.pricing[g].retail_price_per_kg) } : {}),
+            minimum_order_kg: Number(form.pricing[g].minimum_order_kg) || 10,
+            effective_from: form.pricing[g].effective_from,
+            ...(form.pricing[g].effective_to ? { effective_to: form.pricing[g].effective_to } : {}),
+          }));
         if (inventoryArr.length > 0) fd.append("inventory", JSON.stringify(inventoryArr));
         if (pricingArr.length > 0) fd.append("pricing", JSON.stringify(pricingArr));
         await api.post("/admin/products", fd);
@@ -671,11 +698,25 @@ function ProductsTab() {
       }
       setSheetOpen(false);
       fetchProducts();
+      fetchLowStock();
     } catch (err: any) {
       toast.error(err.response?.data?.message ?? "Failed to save product");
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleimgerr = (value: any) => {
+    const allowedExtensions = ["jpg", "jpeg", "png"];
+    const fileName = value.name.toLowerCase();
+    const fileExtension = fileName.split(".").pop();
+    if (!allowedExtensions.includes(fileExtension)) {
+      toast.error("Only JPG, JPEG, PNG images are allowed");
+      setimgerr(true);
+      return;
+    }
+    setImageFile(value);
+    setimgerr(false);
   };
 
   const handleDelete = async (product: any) => {
@@ -689,10 +730,211 @@ function ProductsTab() {
     }
   };
 
+  // ── Stock Adjustment handlers (lifted from InventoryTab) ───────────────────
+  const openAdjust = async (productId: number, defaultGrade?: Grade) => {
+    setAdjustProduct(null);
+    setSelectedGrade(defaultGrade ?? "A");
+    setAdjustForm({
+      transaction_type: "stock_in",
+      quantity_kg: "",
+      reference_type: "manual",
+      reference_id: "",
+      warehouse_location: "",
+      minimum_stock_alert: "",
+      remarks: "",
+    });
+    setAdjustOpen(true);
+    setAdjustLoadingProduct(true);
+    try {
+      const res = await api.get(`/admin/products/${productId}`);
+      const detail = res.data?.data ?? res.data;
+      setAdjustProduct(detail);
+      const gradeInv = detail?.inventory?.find((inv: any) => inv.grade === (defaultGrade ?? "A"));
+      if (gradeInv?.warehouse_location) {
+        setAdjustForm((f) => ({ ...f, warehouse_location: gradeInv.warehouse_location }));
+      }
+      if (gradeInv?.minimum_stock_alert) {
+        setAdjustForm((f) => ({ ...f, minimum_stock_alert: String(gradeInv.minimum_stock_alert) }));
+      }
+    } catch {
+      toast.error("Failed to load product inventory details");
+      setAdjustOpen(false);
+    } finally {
+      setAdjustLoadingProduct(false);
+    }
+  };
+
+  const handleGradeChange = (grade: Grade) => {
+    setSelectedGrade(grade);
+    if (!adjustProduct) return;
+    const inv = adjustProduct.inventory?.find((i: any) => i.grade === grade);
+    setAdjustForm((f) => ({
+      ...f,
+      warehouse_location: inv?.warehouse_location ?? "",
+      minimum_stock_alert: inv?.minimum_stock_alert ? String(inv.minimum_stock_alert) : "",
+    }));
+  };
+
+  const handleAdjust = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!adjustForm.quantity_kg || Number(adjustForm.quantity_kg) <= 0) {
+      toast.error("Quantity must be greater than 0");
+      return;
+    }
+    if (!adjustProduct) return;
+    const inv = adjustProduct.inventory?.find((i: any) => i.grade === selectedGrade);
+    if (!inv) { toast.error(`No inventory record found for Grade ${selectedGrade}`); return; }
+
+    setAdjustSaving(true);
+    try {
+      const body: any = {
+        transaction_type: adjustForm.transaction_type,
+        quantity_kg: Number(adjustForm.quantity_kg),
+        reference_type: adjustForm.reference_type,
+      };
+      if (adjustForm.reference_id) body.reference_id = Number(adjustForm.reference_id);
+      if (adjustForm.warehouse_location) body.warehouse_location = adjustForm.warehouse_location;
+      if (adjustForm.minimum_stock_alert) body.minimum_stock_alert = Number(adjustForm.minimum_stock_alert);
+      if (adjustForm.remarks) body.remarks = adjustForm.remarks;
+
+      const res = await api.patch(`/admin/inventory/${inv.inventory_id}`, body);
+      const result = res.data?.data;
+      toast.success(
+        `Grade ${selectedGrade} stock updated: ${formatKg(result?.previous_quantity_kg)} → ${formatKg(result?.new_quantity_kg)}`
+      );
+      setAdjustOpen(false);
+      fetchProducts();
+      fetchLowStock();
+      // Refresh the expanded accordion row so numbers update inline
+      await refreshExpandedRow(adjustProduct.product_id);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message ?? "Failed to adjust stock");
+    } finally {
+      setAdjustSaving(false);
+    }
+  };
+
+  const selectedInv = adjustProduct?.inventory?.find((i: any) => i.grade === selectedGrade);
+
+  // ── Transaction History handlers (lifted from InventoryTab) ────────────────
+  const fetchTransactions = useCallback(async (invId: number, pg = 1) => {
+    setTxLoading(true);
+    try {
+      const res = await api.get(`/admin/inventory/${invId}/transactions`, { params: { page: pg, limit: 10 } });
+      const data = res.data?.data ?? res.data;
+      setTransactions(Array.isArray(data?.transactions) ? data.transactions : []);
+      setTxTotalPages(data?.pagination?.total_pages ?? null);
+    } catch { /* silent */ }
+    finally { setTxLoading(false); }
+  }, []);
+
+  const openTransactions = async (productId: number, productName: string, grade: Grade) => {
+    setTxProductName(productName);
+    setTxGrade(grade);
+    setTxPage(1);
+    setTransactions([]);
+    setTxOpen(true);
+    setTxLoading(true);
+    try {
+      const res = await api.get(`/admin/products/${productId}`);
+      const detail = res.data?.data ?? res.data;
+      const inv = detail?.inventory?.find((i: any) => i.grade === grade);
+      if (!inv) {
+        toast.error(`No inventory record found for Grade ${grade}`);
+        setTxOpen(false);
+        return;
+      }
+      setTxInventoryId(inv.inventory_id);
+      fetchTransactions(inv.inventory_id, 1);
+    } catch {
+      toast.error("Failed to load inventory details");
+      setTxOpen(false);
+      setTxLoading(false);
+    }
+  };
+
+  // ── Pricing handlers (lifted from PricingTab) ──────────────────────────────
+  const openAddPricing = (productId: number) => {
+    setPricingForm({
+      product_id: String(productId),
+      grade: "A",
+      base_price_per_kg: "",
+      wholesale_price_per_kg: "",
+      retail_price_per_kg: "",
+      minimum_order_kg: "10",
+      effective_from: "",
+      effective_to: "",
+    });
+    setPricingSheetOpen(true);
+  };
+
+  const handleAddPricing = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!pricingForm.product_id) { toast.error("Product is required"); return; }
+    if (!pricingForm.base_price_per_kg || !pricingForm.wholesale_price_per_kg) { toast.error("Base and wholesale prices are required"); return; }
+    if (!pricingForm.effective_from) { toast.error("Effective from date is required"); return; }
+    setPricingSaving(true);
+    try {
+      const body: any = {
+        product_id: Number(pricingForm.product_id),
+        grade: pricingForm.grade,
+        base_price_per_kg: Number(pricingForm.base_price_per_kg),
+        wholesale_price_per_kg: Number(pricingForm.wholesale_price_per_kg),
+        minimum_order_kg: Number(pricingForm.minimum_order_kg) || 10,
+        effective_from: pricingForm.effective_from,
+      };
+      if (pricingForm.retail_price_per_kg) body.retail_price_per_kg = Number(pricingForm.retail_price_per_kg);
+      if (pricingForm.effective_to) body.effective_to = pricingForm.effective_to;
+
+      await api.post("/admin/pricing", body);
+      toast.success("Pricing added successfully");
+      setPricingSheetOpen(false);
+      fetchProducts();
+      await refreshExpandedRow(Number(pricingForm.product_id));
+    } catch (err: any) {
+      toast.error(err.response?.data?.message ?? "Failed to add pricing");
+    } finally {
+      setPricingSaving(false);
+    }
+  };
+
+  const handleDeletePricing = async (pricingId: number, productId: number) => {
+    if (!confirm("Deactivate this pricing entry?")) return;
+    try {
+      await api.delete(`/admin/pricing/${pricingId}`);
+      toast.success("Pricing deactivated");
+      fetchProducts();
+      await refreshExpandedRow(productId);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message ?? "Failed to deactivate pricing");
+    }
+  };
+
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <>
+      {/* ── Low stock alert banner (from InventoryTab) ── */}
+      {lowStockCount > 0 && (
+        <div className="mb-4 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
+          <IconAlertTriangle className="size-5 text-amber-600 shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="font-semibold text-amber-800">
+              {lowStockCount} item{lowStockCount > 1 ? "s" : ""} below minimum stock level
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {lowStock.slice(0, 5).map((item) => (
+                <span key={item.inventory_id} className="text-xs bg-amber-100 text-amber-800 rounded px-2 py-0.5">
+                  {item.product?.product_name} Grade {item.grade} — {formatKg(item.available_quantity_kg)} / {formatKg(item.minimum_stock_alert)} min
+                </span>
+              ))}
+              {lowStockCount > 5 && <span className="text-xs text-amber-700">+{lowStockCount - 5} more</span>}
+            </div>
+          </div>
+        </div>
+      )}
+
       <Card className="border-none shadow-md ring-1 ring-border bg-white/70 backdrop-blur-sm">
-        {/* Toolbar */}
+        {/* ── Toolbar ── */}
         <div className="flex flex-col gap-3 p-4 border-b bg-muted/30 md:flex-row md:items-center md:justify-between">
           <div className="flex flex-wrap gap-2">
             <div className="relative w-64">
@@ -704,51 +946,72 @@ function ProductsTab() {
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            {/* Category filter */}
             <Select value={categoryFilter || "all_cat"} onValueChange={(v) => { setCategoryFilter(v === "all_cat" ? "" : v); setPage(1); }}>
-              <SelectTrigger className="w-44 bg-white dark:bg-card">
-                <SelectValue placeholder="All Categories" />
-              </SelectTrigger>
+              <SelectTrigger className="w-44 bg-white dark:bg-card"><SelectValue placeholder="All Categories" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all_cat">All Categories</SelectItem>
-                {categories.map((c) => (
-                  <SelectItem key={c.category_id} value={String(c.category_id)}>{c.category_name}</SelectItem>
-                ))}
+                {categories.map((c) => <SelectItem key={c.category_id} value={String(c.category_id)}>{c.category_name}</SelectItem>)}
               </SelectContent>
             </Select>
-            {/* Active filter */}
             <Select value={activeFilter || "all_active"} onValueChange={(v) => { setActiveFilter(v === "all_active" ? "" : v); setPage(1); }}>
-              <SelectTrigger className="w-36 bg-white dark:bg-card">
-                <SelectValue placeholder="All Status" />
-              </SelectTrigger>
+              <SelectTrigger className="w-36 bg-white dark:bg-card"><SelectValue placeholder="All Status" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all_active">All Status</SelectItem>
                 <SelectItem value="true">Active</SelectItem>
                 <SelectItem value="false">Inactive</SelectItem>
               </SelectContent>
             </Select>
-            {/* Seasonal filter */}
-            <Select value={seasonalFilter || "all_season"} onValueChange={(v) => { setSeasonalFilter(v === "all_season" ? "" : v); setPage(1); }}>
-              <SelectTrigger className="w-36 bg-white dark:bg-card">
-                <SelectValue placeholder="All Types" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all_season">All Types</SelectItem>
-                <SelectItem value="true">Seasonal</SelectItem>
-                <SelectItem value="false">Year-round</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex items-center gap-2 ps-3">
+            <h1>Seasonal:</h1>
+             <RadioGroup.Root
+          value={seasonalFilter || "all_seasonal"}
+          onValueChange={(v) =>  {setSeasonalFilter(v === "all_seasonal" ? "" : v); setPage(1); }}
+          aria-label="Status"
+          className="relative flex bg-gray-200 rounded-full p-1 w-12 h-5 overflow-hidden"
+        >
+          {/* Sliding background */}
+          <div
+            className="absolute top-1 bottom-1 w-[30%] rounded-full bg-white shadow transition-all duration-75 ease-in-out"
+            style={{
+              left:  seasonalFilter === "true" ? "50%" : "4px",
+              backgroundColor: seasonalFilter === "true" ? "#10B981" : "#4B5563",
+            }}
+          />
+
+          {/* Active */}
+          <RadioGroup.Item
+            value=""
+            className="relative z-10 w-1/2 text-center py-1.5 text-sm font-medium 
+            text-gray-600 data-[state=checked]:text-black cursor-pointer 
+            focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 rounded-full"
+          >
+          </RadioGroup.Item>
+
+          {/* Inactive */}
+          <RadioGroup.Item
+            value="true"
+            className="relative z-10 w-1/2 text-center py-1.5 text-sm font-medium 
+            text-gray-600 data-[state=checked]:text-black cursor-pointer 
+            focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 rounded-full"
+          >
+          </RadioGroup.Item>
+        </RadioGroup.Root>
+        </div>
           </div>
           <Button size="sm" onClick={openCreate}>
             <IconPlus className="mr-2 size-4" /> Add Product
           </Button>
         </div>
 
+        {/* ── Table ── */}
         <div className="overflow-x-auto">
-          <Table className="min-w-[900px]">
+          <Table className="min-w-[960px]">
             <TableHeader>
               <TableRow className="bg-muted/50 hover:bg-muted/50">
+                {/* expand chevron col */}
+                <TableHead className="px-4 py-3 w-8" />
                 <TableHead className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">S.No</TableHead>
+                <TableHead className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Product Image</TableHead>
                 <TableHead className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Product</TableHead>
                 <TableHead className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Code</TableHead>
                 <TableHead className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Category</TableHead>
@@ -762,70 +1025,118 @@ function ProductsTab() {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="py-10 text-center text-muted-foreground">Loading products...</TableCell>
+                  <TableCell colSpan={11} className="py-10 text-center text-muted-foreground">Loading products...</TableCell>
                 </TableRow>
               ) : products.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="py-10 text-center text-muted-foreground">No products found.</TableCell>
+                  <TableCell colSpan={11} className="py-10 text-center text-muted-foreground">No products found.</TableCell>
                 </TableRow>
               ) : (
-                products.map((p, i) => (
-                  <TableRow key={p.product_id} className="group hover:bg-primary/5 border-b last:border-0">
-                    <TableCell className="px-4 py-3 text-muted-foreground">{(page - 1) * limit + i + 1}</TableCell>
-                    <TableCell className="px-4 py-3">
-                      <div className="font-semibold group-hover:text-primary transition-colors">{p.product_name}</div>
-                      {p.is_seasonal && (
-                        <div className="text-[10px] text-amber-600 font-medium uppercase tracking-widest">
-                          Seasonal · {monthName(p.season_start_month)} – {monthName(p.season_end_month)}
-                        </div>
-                      )}
-                    </TableCell>
-                    <TableCell className="px-4 py-3">
-                      <Badge variant="outline" className="font-mono text-xs">{p.product_code}</Badge>
-                    </TableCell>
-                    <TableCell className="px-4 py-3 text-sm text-muted-foreground">
-                      {p.category?.category_name ?? "--"}
-                    </TableCell>
-                    <TableCell className="px-4 py-3 font-semibold">
-                      {formatKg(p.current_stock_kg)}
-                    </TableCell>
-                    <TableCell className="px-4 py-3">
-                      <div className="flex gap-1 flex-wrap">
-                        {GRADES.map((g) => (
-                          <span key={g} className="inline-flex items-center gap-1 text-xs bg-muted/60 rounded px-1.5 py-0.5">
-                            <span className="font-bold text-foreground">{g}</span>
-                            <span className="text-muted-foreground">{p.grade_stock?.[g] ?? 0}</span>
+                products.map((p, i) => {
+                  const isExpanded = Boolean(expandedRows[p.product_id]);
+                  const rowState = expandedRows[p.product_id];
+                  const isLow = lowStock.some((ls) => ls.product_id === p.product_id);
+
+                  return (
+                    <>
+                      {/* ── Main product row ── */}
+                      <TableRow
+                        key={`prod-${p.product_id}`}
+                        className={`group border-b cursor-pointer transition-colors ${
+                          isExpanded
+                            ? "bg-primary/5 hover:bg-primary/5"
+                            : isLow
+                            ? "bg-amber-50/40 hover:bg-amber-50/70"
+                            : "hover:bg-primary/5"
+                        }`}
+                        onClick={() => toggleRow(p.product_id)}
+                      >
+                        {/* Chevron */}
+                        <TableCell className="px-4 py-3">
+                          <IconChevronRight
+                            className={`size-4 text-muted-foreground transition-transform duration-200 ${isExpanded ? "rotate-90" : ""}`}
+                          />
+                        </TableCell>
+                        <TableCell className="px-4 py-3 text-muted-foreground">{(page - 1) * limit + i + 1}</TableCell>
+                        <TableCell className="px-4 py-3">
+                          <img src={`${imgURL}${p.image_url}`} className="h-20 w-20 object-cover rounded" alt={p.product_name} />
+                        </TableCell>
+                        <TableCell className="px-4 py-3">
+                          <div className="flex items-center gap-1">
+                            {isLow && <IconAlertTriangle className="size-4 text-amber-500 shrink-0" />}
+                            <div>
+                              <div className="font-semibold group-hover:text-primary transition-colors">{p.product_name}</div>
+                              {p.is_seasonal && (
+                                <div className="text-[10px] text-amber-600 font-medium uppercase tracking-widest">
+                                  Seasonal · {monthName(p.season_start_month)} – {monthName(p.season_end_month)}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="px-4 py-3">
+                          <Badge variant="outline" className="font-mono text-xs">{p.product_code}</Badge>
+                        </TableCell>
+                        <TableCell className="px-4 py-3 text-sm text-muted-foreground">{p.category?.category_name ?? "--"}</TableCell>
+                        <TableCell className="px-4 py-3 font-semibold">{formatKg(p.current_stock_kg)}</TableCell>
+                        <TableCell className="px-4 py-3">
+                          <div className="flex gap-1 flex-wrap">
+                            {GRADES.map((g) => (
+                              <span key={g} className="inline-flex items-center gap-1 text-xs bg-muted/60 rounded px-1.5 py-0.5">
+                                <span className="font-bold text-foreground">{g}</span>
+                                <span className="text-muted-foreground">{p.grade_stock?.[g] ?? 0}</span>
+                              </span>
+                            ))}
+                          </div>
+                        </TableCell>
+                        <TableCell className="px-4 py-3 text-sm text-muted-foreground">
+                          <span className={`font-semibold ${(p.active_pricing_count ?? 0) === 0 ? "text-red-500" : "text-emerald-600"}`}>
+                            {p.active_pricing_count ?? 0} active
                           </span>
-                        ))}
-                      </div>
-                    </TableCell>
-                    <TableCell className="px-4 py-3 text-sm text-muted-foreground">
-                      {p.active_pricing_count ?? 0} active
-                    </TableCell>
-                    <TableCell className="px-4 py-3">
-                      <StatusBadge active={p.is_active} />
-                    </TableCell>
-                    <TableCell className="px-4 py-3 text-right">
-                      <div className="flex justify-end gap-1">
-                        <Button variant="ghost" size="icon" title="View details" onClick={() => openDetail(p)}>
-                          <IconEye className="size-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" title="Edit" onClick={() => openEdit(p)}>
-                          <IconEdit className="size-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-600" title="Deactivate" onClick={() => handleDelete(p)}>
-                          <IconTrash className="size-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
+                        </TableCell>
+                        <TableCell className="px-4 py-3">
+                          <StatusBadge active={p.is_active} />
+                        </TableCell>
+                        <TableCell className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex justify-end gap-1">
+                            <Button variant="ghost" size="icon" title="Edit" onClick={() => openEdit(p)}>
+                              <IconEdit className="size-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-600" title="Deactivate" onClick={() => handleDelete(p)}>
+                              <IconTrash className="size-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+
+                      {/* ── Expanded accordion row ── */}
+                      {isExpanded && (
+                        <TableRow key={`expand-${p.product_id}`} className="border-b">
+                          <TableCell colSpan={11} className="p-0 bg-muted/20">
+                            {rowState?.loading ? (
+                              <div className="px-10 py-6 text-sm text-muted-foreground">Loading inventory &amp; pricing...</div>
+                            ) : rowState?.detail ? (
+                              <ProductAccordionContent
+                                product={rowState.detail}
+                                lowStock={lowStock}
+                                onAdjustStock={(grade) => openAdjust(rowState.detail.product_id, grade)}
+                                onViewHistory={(grade) => openTransactions(rowState.detail.product_id, rowState.detail.product_name, grade)}
+                                onAddPricing={() => openAddPricing(rowState.detail.product_id)}
+                                onDeletePricing={(pricingId) => handleDeletePricing(pricingId, rowState.detail.product_id)}
+                              />
+                            ) : null}
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </>
+                  );
+                })
               )}
             </TableBody>
           </Table>
         </div>
 
-        {/* Pagination */}
+        {/* ── Pagination ── */}
         <div className="flex flex-col gap-3 border-t bg-muted/20 p-4 md:flex-row md:items-center md:justify-between">
           <div className="text-sm text-muted-foreground">
             Page <span className="font-semibold text-foreground">{page}</span>
@@ -839,7 +1150,9 @@ function ProductsTab() {
         </div>
       </Card>
 
-      {/* Create / Edit Product Sheet */}
+      {/* ════════════════════════════════════════════════════════════════════
+          CREATE / EDIT PRODUCT SHEET  (unchanged from original)
+      ════════════════════════════════════════════════════════════════════ */}
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
         <SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
           <SheetHeader>
@@ -848,8 +1161,7 @@ function ProductsTab() {
               {editTarget ? "Update product details below." : "Fill in the details to add a new product."}
             </SheetDescription>
           </SheetHeader>
-          <form onSubmit={handleSubmit} className="mt-6 space-y-6">
-            {/* Basic Info */}
+          <form onSubmit={handleSubmit} className="mt-6 space-y-6 px-4">
             <SectionHeading>Basic Information</SectionHeading>
             <div className="grid grid-cols-2 gap-4">
               <FormField label="Product Name *" id="p_name" className="col-span-2">
@@ -860,13 +1172,9 @@ function ProductsTab() {
               </FormField>
               <FormField label="Category *" id="p_cat">
                 <Select value={form.category_id || "none"} onValueChange={(v) => setForm((f) => ({ ...f, category_id: v === "none" ? "" : v }))}>
-                  <SelectTrigger id="p_cat" className="bg-white dark:bg-card">
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
+                  <SelectTrigger id="p_cat" className="bg-white dark:bg-card"><SelectValue placeholder="Select category" /></SelectTrigger>
                   <SelectContent>
-                    {categories.map((c) => (
-                      <SelectItem key={c.category_id} value={String(c.category_id)}>{c.category_name}</SelectItem>
-                    ))}
+                    {categories.map((c) => <SelectItem key={c.category_id} value={String(c.category_id)}>{c.category_name}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </FormField>
@@ -878,7 +1186,6 @@ function ProductsTab() {
               </FormField>
             </div>
 
-            {/* Seasonal */}
             <div className="flex items-center gap-3">
               <Switch id="p_seasonal" checked={form.is_seasonal} onCheckedChange={(v) => setForm((f) => ({ ...f, is_seasonal: v }))} />
               <Label htmlFor="p_seasonal">Seasonal Product</Label>
@@ -887,37 +1194,28 @@ function ProductsTab() {
               <div className="grid grid-cols-2 gap-4">
                 <FormField label="Season Start Month" id="p_start">
                   <Select value={form.season_start_month || "none"} onValueChange={(v) => setForm((f) => ({ ...f, season_start_month: v === "none" ? "" : v }))}>
-                    <SelectTrigger className="bg-white dark:bg-card">
-                      <SelectValue placeholder="Select month" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {MONTHS.map((m) => <SelectItem key={m.value} value={String(m.value)}>{m.label}</SelectItem>)}
-                    </SelectContent>
+                    <SelectTrigger className="bg-white dark:bg-card"><SelectValue placeholder="Select month" /></SelectTrigger>
+                    <SelectContent>{MONTHS.map((m) => <SelectItem key={m.value} value={String(m.value)}>{m.label}</SelectItem>)}</SelectContent>
                   </Select>
                 </FormField>
                 <FormField label="Season End Month" id="p_end">
                   <Select value={form.season_end_month || "none"} onValueChange={(v) => setForm((f) => ({ ...f, season_end_month: v === "none" ? "" : v }))}>
-                    <SelectTrigger className="bg-white dark:bg-card">
-                      <SelectValue placeholder="Select month" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {MONTHS.map((m) => <SelectItem key={m.value} value={String(m.value)}>{m.label}</SelectItem>)}
-                    </SelectContent>
+                    <SelectTrigger className="bg-white dark:bg-card"><SelectValue placeholder="Select month" /></SelectTrigger>
+                    <SelectContent>{MONTHS.map((m) => <SelectItem key={m.value} value={String(m.value)}>{m.label}</SelectItem>)}</SelectContent>
                   </Select>
                 </FormField>
               </div>
             )}
 
-            {/* Image */}
             <FormField label="Product Image" id="p_img">
               <div className="flex items-center gap-3">
-                <input ref={imageRef} type="file" accept="image/*" className="hidden" onChange={(e) => setImageFile(e.target.files?.[0] ?? null)} />
+                <input ref={imageRef} type="file" accept="image/*" className="hidden" onChange={(e) => handleimgerr(e.target.files?.[0] ?? null)} />
                 <Button type="button" variant="outline" size="sm" onClick={() => imageRef.current?.click()}>Choose Image</Button>
                 <span className="text-sm text-muted-foreground truncate max-w-[200px]">{imageFile ? imageFile.name : "No file chosen"}</span>
               </div>
+              {imgerr && <div><span className="text-sm text-red-600">Only JPG, JPEG, PNG images are allowed</span></div>}
             </FormField>
 
-            {/* Edit-only: is_active */}
             {editTarget && (
               <div className="flex items-center gap-3">
                 <Switch id="p_active" checked={form.is_active} onCheckedChange={(v) => setForm((f) => ({ ...f, is_active: v }))} />
@@ -925,7 +1223,6 @@ function ProductsTab() {
               </div>
             )}
 
-            {/* Inventory per grade (create only) */}
             {!editTarget && (
               <>
                 <SectionHeading>Initial Inventory (Optional)</SectionHeading>
@@ -938,34 +1235,13 @@ function ProductsTab() {
                       </div>
                       <div className="grid grid-cols-3 gap-3">
                         <FormField label="Quantity (kg)" id={`inv_qty_${g}`}>
-                          <Input
-                            id={`inv_qty_${g}`}
-                            type="number"
-                            min={0}
-                            step="0.01"
-                            placeholder="0"
-                            value={form.inventory[g].available_quantity_kg}
-                            onChange={(e) => setForm((f) => ({ ...f, inventory: { ...f.inventory, [g]: { ...f.inventory[g], available_quantity_kg: e.target.value } } }))}
-                          />
+                          <Input id={`inv_qty_${g}`} type="number" min={0} step="0.01" placeholder="0" value={form.inventory[g].available_quantity_kg} onChange={(e) => setForm((f) => ({ ...f, inventory: { ...f.inventory, [g]: { ...f.inventory[g], available_quantity_kg: e.target.value } } }))} />
                         </FormField>
                         <FormField label="Warehouse Location" id={`inv_wh_${g}`}>
-                          <Input
-                            id={`inv_wh_${g}`}
-                            placeholder="e.g. Rack-1"
-                            value={form.inventory[g].warehouse_location}
-                            onChange={(e) => setForm((f) => ({ ...f, inventory: { ...f.inventory, [g]: { ...f.inventory[g], warehouse_location: e.target.value } } }))}
-                          />
+                          <Input id={`inv_wh_${g}`} placeholder="e.g. Rack-1" value={form.inventory[g].warehouse_location} onChange={(e) => setForm((f) => ({ ...f, inventory: { ...f.inventory, [g]: { ...f.inventory[g], warehouse_location: e.target.value } } }))} />
                         </FormField>
                         <FormField label="Min Stock Alert (kg)" id={`inv_min_${g}`}>
-                          <Input
-                            id={`inv_min_${g}`}
-                            type="number"
-                            min={0}
-                            step="0.01"
-                            placeholder="20"
-                            value={form.inventory[g].minimum_stock_alert}
-                            onChange={(e) => setForm((f) => ({ ...f, inventory: { ...f.inventory, [g]: { ...f.inventory[g], minimum_stock_alert: e.target.value } } }))}
-                          />
+                          <Input id={`inv_min_${g}`} type="number" min={0} step="0.01" placeholder="20" value={form.inventory[g].minimum_stock_alert} onChange={(e) => setForm((f) => ({ ...f, inventory: { ...f.inventory, [g]: { ...f.inventory[g], minimum_stock_alert: e.target.value } } }))} />
                         </FormField>
                       </div>
                     </div>
@@ -1014,492 +1290,9 @@ function ProductsTab() {
         </SheetContent>
       </Sheet>
 
-      {/* Product Detail Sheet */}
-      <Sheet open={detailOpen} onOpenChange={setDetailOpen}>
-        <SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>Product Details</SheetTitle>
-            <SheetDescription>Full inventory and pricing breakdown</SheetDescription>
-          </SheetHeader>
-          {detailLoading ? (
-            <div className="mt-8 text-center text-muted-foreground">Loading...</div>
-          ) : detailProduct ? (
-            <ProductDetail product={detailProduct} />
-          ) : null}
-        </SheetContent>
-      </Sheet>
-    </>
-  );
-}
-
-// ── Product detail view ────────────────────────────────────────────────────────
-
-function ProductDetail({ product }: { product: any }) {
-  return (
-    <div className="mt-6 space-y-6">
-      {/* Header */}
-      <div className="rounded-xl border bg-gradient-to-br from-primary/10 via-background to-emerald-50/40 p-5">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex-1">
-            <p className="text-xs uppercase tracking-widest text-muted-foreground">Product</p>
-            <p className="text-2xl font-semibold">{product.product_name}</p>
-            <p className="text-sm text-muted-foreground">{product.category?.category_name} · {product.product_code}</p>
-          </div>
-          <div className="flex flex-col items-end gap-2">
-            <StatusBadge active={product.is_active} />
-            {product.is_seasonal && (
-              <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-xs">
-                Seasonal · {monthName(product.season_start_month)} – {monthName(product.season_end_month)}
-              </Badge>
-            )}
-          </div>
-        </div>
-        <div className="mt-4 grid grid-cols-2 gap-3">
-          <div className="rounded-lg bg-white/60 p-3">
-            <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Total Stock</p>
-            <p className="text-xl font-semibold text-foreground">{formatKg(product.current_stock_kg)}</p>
-          </div>
-          <div className="rounded-lg bg-white/60 p-3">
-            <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Unit</p>
-            <p className="text-xl font-semibold">{product.unit ?? "kg"}</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Inventory */}
-      <div>
-        <p className="text-sm font-semibold mb-3">Inventory by Grade</p>
-        <div className="space-y-2">
-          {(product.inventory ?? []).length === 0 ? (
-            <p className="text-sm text-muted-foreground">No inventory records.</p>
-          ) : (
-            product.inventory.map((inv: any) => (
-              <div key={inv.inventory_id} className="rounded-xl border bg-card p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <GradeBadge grade={inv.grade} />
-                  <span className="text-sm font-semibold">{formatKg(inv.available_quantity_kg)} available</span>
-                </div>
-                <div className="grid grid-cols-2 gap-2 text-sm text-muted-foreground">
-                  <div className="flex justify-between">
-                    <span>Reserved</span>
-                    <span className="font-medium text-foreground">{formatKg(inv.reserved_quantity_kg)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Min Alert</span>
-                    <span className="font-medium text-foreground">{formatKg(inv.minimum_stock_alert)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Location</span>
-                    <span className="font-medium text-foreground">{inv.warehouse_location ?? "--"}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Last Restocked</span>
-                    <span className="font-medium text-foreground">{formatDate(inv.last_restocked_at)}</span>
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
-
-      {/* Pricing */}
-      <div>
-        <p className="text-sm font-semibold mb-3">Pricing by Grade</p>
-        <div className="space-y-2">
-          {(product.pricing ?? []).length === 0 ? (
-            <p className="text-sm text-muted-foreground">No pricing records.</p>
-          ) : (
-            product.pricing.map((pr: any) => (
-              <div key={pr.pricing_id} className="rounded-xl border bg-card p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <GradeBadge grade={pr.grade} />
-                  <StatusBadge active={pr.is_active} />
-                </div>
-                <div className="grid grid-cols-2 gap-2 text-sm text-muted-foreground">
-                  <div className="flex justify-between">
-                    <span>Base Price</span>
-                    <span className="font-semibold text-foreground">{formatRs(pr.base_price_per_kg)}/kg</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Wholesale</span>
-                    <span className="font-semibold text-foreground">{formatRs(pr.wholesale_price_per_kg)}/kg</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Retail</span>
-                    <span className="font-semibold text-foreground">{formatRs(pr.retail_price_per_kg)}/kg</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Min Order</span>
-                    <span className="font-semibold text-foreground">{formatKg(pr.minimum_order_kg)}</span>
-                  </div>
-                  <div className="flex justify-between col-span-2">
-                    <span>Effective</span>
-                    <span className="font-medium text-foreground">{formatDate(pr.effective_from)} → {pr.effective_to ? formatDate(pr.effective_to) : "Ongoing"}</span>
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// INVENTORY TAB
-// ═══════════════════════════════════════════════════════════════════════════════
-
-function InventoryTab() {
-  const [products, setProducts] = useState<any[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [lowStock, setLowStock] = useState<any[]>([]);
-  const [lowStockCount, setLowStockCount] = useState(0);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState<number | null>(null);
-  const [totalItems, setTotalItems] = useState<number | null>(null);
-  const limit = 10;
-  const [gradeFilter, setGradeFilter] = useState<string>("");
-  const [categoryFilter, setCategoryFilter] = useState<string>("");
-
-  // Adjust stock sheet
-  const [adjustOpen, setAdjustOpen] = useState(false);
-  const [adjustProduct, setAdjustProduct] = useState<any | null>(null); // full product detail
-  const [adjustLoadingProduct, setAdjustLoadingProduct] = useState(false);
-  const [selectedGrade, setSelectedGrade] = useState<Grade>("A");
-  const [adjustForm, setAdjustForm] = useState({
-    transaction_type: "stock_in",
-    quantity_kg: "",
-    reference_type: "manual",
-    reference_id: "",
-    warehouse_location: "",
-    minimum_stock_alert: "",
-    remarks: "",
-  });
-  const [adjustSaving, setAdjustSaving] = useState(false);
-
-  // Transaction history sheet
-  const [txOpen, setTxOpen] = useState(false);
-  const [txInventoryId, setTxInventoryId] = useState<number | null>(null);
-  const [txProductName, setTxProductName] = useState("");
-  const [txGrade, setTxGrade] = useState("");
-  const [transactions, setTransactions] = useState<any[]>([]);
-  const [txLoading, setTxLoading] = useState(false);
-  const [txPage, setTxPage] = useState(1);
-  const [txTotalPages, setTxTotalPages] = useState<number | null>(null);
-
-  const fetchCategories = useCallback(async () => {
-    try {
-      const res = await api.get("/admin/products/categories", { params: { is_active: true } });
-      const data = res.data?.data ?? res.data;
-      setCategories(Array.isArray(data?.categories) ? data.categories : []);
-    } catch { /* silent */ }
-  }, []);
-
-  const fetchLowStock = useCallback(async () => {
-    try {
-      const res = await api.get("/admin/inventory/low-stock");
-      const data = res.data?.data ?? res.data;
-      setLowStock(Array.isArray(data?.inventory) ? data.inventory : []);
-      setLowStockCount(data?.count ?? 0);
-    } catch { /* silent */ }
-  }, []);
-
-  const fetchInventory = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params: any = { page, limit };
-      if (gradeFilter) params.grade = gradeFilter;
-      if (categoryFilter) params.category_id = Number(categoryFilter);
-      const res = await api.get("/admin/inventory", { params });
-      const data = res.data?.data ?? res.data;
-      setProducts(Array.isArray(data?.products) ? data.products : []);
-      setTotalPages(data?.pagination?.total_pages ?? null);
-      setTotalItems(data?.pagination?.total ?? null);
-    } catch (err: any) {
-      toast.error(err.response?.data?.message ?? "Failed to fetch inventory");
-    } finally {
-      setLoading(false);
-    }
-  }, [page, limit, gradeFilter, categoryFilter]);
-
-  useEffect(() => { fetchCategories(); fetchLowStock(); }, [fetchCategories, fetchLowStock]);
-  useEffect(() => { fetchInventory(); }, [fetchInventory]);
-
-  const fetchTransactions = useCallback(async (invId: number, pg = 1) => {
-    setTxLoading(true);
-    try {
-      const res = await api.get(`/admin/inventory/${invId}/transactions`, { params: { page: pg, limit: 10 } });
-      const data = res.data?.data ?? res.data;
-      setTransactions(Array.isArray(data?.transactions) ? data.transactions : []);
-      setTxTotalPages(data?.pagination?.total_pages ?? null);
-    } catch { /* silent */ }
-    finally { setTxLoading(false); }
-  }, []);
-
-  // ── Open adjust: fetch full product to get per-grade inventory_id ──────────
-  const openAdjust = async (productId: number, productName: string) => {
-    setAdjustProduct(null);
-    setSelectedGrade("A");
-    setAdjustForm({
-      transaction_type: "stock_in",
-      quantity_kg: "",
-      reference_type: "manual",
-      reference_id: "",
-      warehouse_location: "",
-      minimum_stock_alert: "",
-      remarks: "",
-    });
-    setAdjustOpen(true);
-    setAdjustLoadingProduct(true);
-    try {
-      const res = await api.get(`/admin/products/${productId}`);
-      const detail = res.data?.data ?? res.data;
-      setAdjustProduct(detail);
-      // Pre-fill warehouse location from Grade A inventory if available
-      const gradeAInv = detail?.inventory?.find((inv: any) => inv.grade === "A");
-      if (gradeAInv?.warehouse_location) {
-        setAdjustForm((f) => ({ ...f, warehouse_location: gradeAInv.warehouse_location }));
-      }
-    } catch {
-      toast.error("Failed to load product inventory details");
-      setAdjustOpen(false);
-    } finally {
-      setAdjustLoadingProduct(false);
-    }
-  };
-
-  // ── When grade changes in adjust sheet, update warehouse/min from that grade ─
-  const handleGradeChange = (grade: Grade) => {
-    setSelectedGrade(grade);
-    if (!adjustProduct) return;
-    const inv = adjustProduct.inventory?.find((i: any) => i.grade === grade);
-    setAdjustForm((f) => ({
-      ...f,
-      warehouse_location: inv?.warehouse_location ?? "",
-      minimum_stock_alert: inv?.minimum_stock_alert ? String(inv.minimum_stock_alert) : "",
-    }));
-  };
-
-  // ── Open transactions: fetch product detail to get inventory_id for grade ──
-  const openTransactions = async (productId: number, productName: string, grade: Grade) => {
-    setTxProductName(productName);
-    setTxGrade(grade);
-    setTxPage(1);
-    setTransactions([]);
-    setTxOpen(true);
-    setTxLoading(true);
-    try {
-      const res = await api.get(`/admin/products/${productId}`);
-      const detail = res.data?.data ?? res.data;
-      const inv = detail?.inventory?.find((i: any) => i.grade === grade);
-      if (!inv) {
-        toast.error(`No inventory record found for Grade ${grade}`);
-        setTxOpen(false);
-        return;
-      }
-      setTxInventoryId(inv.inventory_id);
-      fetchTransactions(inv.inventory_id, 1);
-    } catch {
-      toast.error("Failed to load inventory details");
-      setTxOpen(false);
-      setTxLoading(false);
-    }
-  };
-
-  const handleAdjust = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!adjustForm.quantity_kg || Number(adjustForm.quantity_kg) <= 0) {
-      toast.error("Quantity must be greater than 0");
-      return;
-    }
-    if (!adjustProduct) return;
-
-    // Resolve the correct inventory_id for the selected grade
-    const inv = adjustProduct.inventory?.find((i: any) => i.grade === selectedGrade);
-    if (!inv) {
-      toast.error(`No inventory record found for Grade ${selectedGrade}`);
-      return;
-    }
-
-    setAdjustSaving(true);
-    try {
-      const body: any = {
-        transaction_type: adjustForm.transaction_type,
-        quantity_kg: Number(adjustForm.quantity_kg),
-        reference_type: adjustForm.reference_type,
-      };
-      if (adjustForm.reference_id) body.reference_id = Number(adjustForm.reference_id);
-      if (adjustForm.warehouse_location) body.warehouse_location = adjustForm.warehouse_location;
-      if (adjustForm.minimum_stock_alert) body.minimum_stock_alert = Number(adjustForm.minimum_stock_alert);
-      if (adjustForm.remarks) body.remarks = adjustForm.remarks;
-
-      const res = await api.patch(`/admin/inventory/${inv.inventory_id}`, body);
-      const result = res.data?.data;
-      toast.success(
-        `Grade ${selectedGrade} stock updated: ${formatKg(result?.previous_quantity_kg)} → ${formatKg(result?.new_quantity_kg)}`
-      );
-      setAdjustOpen(false);
-      fetchInventory();
-      fetchLowStock();
-    } catch (err: any) {
-      toast.error(err.response?.data?.message ?? "Failed to adjust stock");
-    } finally {
-      setAdjustSaving(false);
-    }
-  };
-
-  // Derive current qty for selected grade from loaded product detail
-  const selectedInv = adjustProduct?.inventory?.find((i: any) => i.grade === selectedGrade);
-
-  return (
-    <>
-      {/* Low stock alert */}
-      {lowStockCount > 0 && (
-        <div className="mb-4 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
-          <IconAlertTriangle className="size-5 text-amber-600 shrink-0 mt-0.5" />
-          <div className="flex-1">
-            <p className="font-semibold text-amber-800">
-              {lowStockCount} item{lowStockCount > 1 ? "s" : ""} below minimum stock level
-            </p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {lowStock.slice(0, 5).map((item) => (
-                <span key={item.inventory_id} className="text-xs bg-amber-100 text-amber-800 rounded px-2 py-0.5">
-                  {item.product?.product_name} Grade {item.grade} — {formatKg(item.available_quantity_kg)} / {formatKg(item.minimum_stock_alert)} min
-                </span>
-              ))}
-              {lowStockCount > 5 && <span className="text-xs text-amber-700">+{lowStockCount - 5} more</span>}
-            </div>
-          </div>
-        </div>
-      )}
-
-      <Card className="border-none shadow-md ring-1 ring-border bg-white/70 backdrop-blur-sm">
-        {/* Toolbar */}
-        <div className="flex flex-col gap-3 p-4 border-b bg-muted/30 md:flex-row md:items-center md:justify-between">
-          <div className="flex flex-wrap gap-2">
-            <Select value={gradeFilter || "all_grade"} onValueChange={(v) => { setGradeFilter(v === "all_grade" ? "" : v); setPage(1); }}>
-              <SelectTrigger className="w-36 bg-white dark:bg-card">
-                <SelectValue placeholder="All Grades" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all_grade">All Grades</SelectItem>
-                {GRADES.map((g) => <SelectItem key={g} value={g}>Grade {g}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={categoryFilter || "all_cat"} onValueChange={(v) => { setCategoryFilter(v === "all_cat" ? "" : v); setPage(1); }}>
-              <SelectTrigger className="w-44 bg-white dark:bg-card">
-                <SelectValue placeholder="All Categories" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all_cat">All Categories</SelectItem>
-                {categories.map((c) => <SelectItem key={c.category_id} value={String(c.category_id)}>{c.category_name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Button variant="outline" size="sm" onClick={() => { fetchInventory(); fetchLowStock(); }}>
-              <IconRefresh className="size-4" />
-            </Button>
-          </div>
-        </div>
-
-        <div className="overflow-x-auto">
-          <Table className="min-w-[1000px]">
-            <TableHeader>
-              <TableRow className="bg-muted/50 hover:bg-muted/50">
-                <TableHead className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">S.No</TableHead>
-                <TableHead className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Product</TableHead>
-                <TableHead className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Category</TableHead>
-                <TableHead className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Total Stock</TableHead>
-                <TableHead className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Grade A</TableHead>
-                <TableHead className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Grade B</TableHead>
-                <TableHead className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Grade C</TableHead>
-                <TableHead className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Active Pricing</TableHead>
-                <TableHead className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                <TableRow>
-                  <TableCell colSpan={9} className="py-10 text-center text-muted-foreground">Loading inventory...</TableCell>
-                </TableRow>
-              ) : products.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={9} className="py-10 text-center text-muted-foreground">No inventory data found.</TableCell>
-                </TableRow>
-              ) : (
-                products.map((p, i) => {
-                  const isLow = lowStock.some((ls) => ls.product_id === p.product_id);
-                  return (
-                    <TableRow key={p.product_id} className={`group border-b last:border-0 ${isLow ? "bg-amber-50/40 hover:bg-amber-50/70" : "hover:bg-primary/5"}`}>
-                      <TableCell className="px-4 py-3 text-muted-foreground">{(page - 1) * limit + i + 1}</TableCell>
-                      <TableCell className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          {isLow && <IconAlertTriangle className="size-4 text-amber-500 shrink-0" />}
-                          <div>
-                            <div className="font-semibold">{p.product_name}</div>
-                            <div className="text-[10px] text-muted-foreground font-mono">{p.product_code}</div>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="px-4 py-3 text-sm text-muted-foreground">{p.category?.category_name ?? "--"}</TableCell>
-                      <TableCell className="px-4 py-3 font-semibold">{formatKg(p.current_stock_kg)}</TableCell>
-                      {GRADES.map((g) => {
-                        const qty = p.grade_stock?.[g] ?? 0;
-                        const isBelowMin = lowStock.some((ls) => ls.product_id === p.product_id && ls.grade === g);
-                        return (
-                          <TableCell key={g} className="px-4 py-3">
-                            <div className="flex flex-col gap-1">
-                              <span className={`font-medium text-sm ${isBelowMin ? "text-amber-600" : ""}`}>
-                                {formatKg(qty)}
-                              </span>
-                              {/* ── Per-grade transaction history button ── */}
-                              <button
-                                type="button"
-                                className="text-[10px] text-primary underline underline-offset-2 hover:opacity-70 text-left w-fit"
-                                onClick={() => openTransactions(p.product_id, p.product_name, g)}
-                              >
-                                History
-                              </button>
-                            </div>
-                          </TableCell>
-                        );
-                      })}
-                      <TableCell className="px-4 py-3 text-sm text-muted-foreground">{p.active_pricing_count ?? 0}</TableCell>
-                      <TableCell className="px-4 py-3 text-right">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-xs"
-                          onClick={() => openAdjust(p.product_id, p.product_name)}
-                        >
-                          <IconRefresh className="mr-1 size-3.5" /> Adjust Stock
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
-        </div>
-
-        {/* Pagination */}
-        <div className="flex flex-col gap-3 border-t bg-muted/20 p-4 md:flex-row md:items-center md:justify-between">
-          <div className="text-sm text-muted-foreground">
-            Page <span className="font-semibold text-foreground">{page}</span>
-            {totalPages ? ` of ${totalPages}` : ""}
-            {totalItems != null ? ` | ${totalItems} total` : ""}
-          </div>
-          <div className="flex gap-2">
-            <Button size="sm" variant="outline" disabled={page <= 1 || loading} onClick={() => setPage((p) => Math.max(1, p - 1))}>Previous</Button>
-            <Button size="sm" variant="outline" disabled={!totalPages || page >= totalPages || loading} onClick={() => setPage((p) => p + 1)}>Next</Button>
-          </div>
-        </div>
-      </Card>
-
-      {/* Stock Adjustment Sheet */}
+      {/* ════════════════════════════════════════════════════════════════════
+          STOCK ADJUSTMENT SHEET  (lifted from InventoryTab)
+      ════════════════════════════════════════════════════════════════════ */}
       <Sheet open={adjustOpen} onOpenChange={setAdjustOpen}>
         <SheetContent className="w-full sm:max-w-md overflow-y-auto">
           <SheetHeader>
@@ -1514,13 +1307,10 @@ function InventoryTab() {
           {adjustLoadingProduct ? (
             <div className="mt-8 text-center text-muted-foreground text-sm">Loading inventory details...</div>
           ) : (
-            <form onSubmit={handleAdjust} className="mt-6 space-y-4">
-              {/* Grade selector — now drives inventory_id resolution */}
+            <form onSubmit={handleAdjust} className="mt-6 space-y-4 px-4">
               <FormField label="Grade" id="adj_grade">
                 <Select value={selectedGrade} onValueChange={(v) => handleGradeChange(v as Grade)}>
-                  <SelectTrigger className="bg-white dark:bg-card">
-                    <SelectValue />
-                  </SelectTrigger>
+                  <SelectTrigger className="bg-white dark:bg-card"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {GRADES.map((g) => {
                       const inv = adjustProduct?.inventory?.find((i: any) => i.grade === g);
@@ -1534,7 +1324,6 @@ function InventoryTab() {
                 </Select>
               </FormField>
 
-              {/* Warn if no inventory record exists for this grade */}
               {adjustProduct && !selectedInv && (
                 <p className="text-xs text-amber-600 bg-amber-50 rounded p-2">
                   No inventory record for Grade {selectedGrade}. Stock adjustment cannot proceed.
@@ -1544,40 +1333,21 @@ function InventoryTab() {
               <FormField label="Transaction Type" id="adj_type">
                 <Select value={adjustForm.transaction_type} onValueChange={(v) => setAdjustForm((f) => ({ ...f, transaction_type: v }))}>
                   <SelectTrigger className="bg-white dark:bg-card"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {TRANSACTION_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
-                  </SelectContent>
+                  <SelectContent>{TRANSACTION_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
                 </Select>
               </FormField>
               <FormField label="Quantity (kg) *" id="adj_qty">
-                <Input
-                  id="adj_qty"
-                  type="number"
-                  min={0.01}
-                  step="0.01"
-                  placeholder="0"
-                  value={adjustForm.quantity_kg}
-                  onChange={(e) => setAdjustForm((f) => ({ ...f, quantity_kg: e.target.value }))}
-                  required
-                />
+                <Input id="adj_qty" type="number" min={0.01} step="0.01" placeholder="0" value={adjustForm.quantity_kg} onChange={(e) => setAdjustForm((f) => ({ ...f, quantity_kg: e.target.value }))} required />
               </FormField>
               <FormField label="Reference Type" id="adj_ref_type">
                 <Select value={adjustForm.reference_type} onValueChange={(v) => setAdjustForm((f) => ({ ...f, reference_type: v }))}>
                   <SelectTrigger className="bg-white dark:bg-card"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {REFERENCE_TYPES.map((r) => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
-                  </SelectContent>
+                  <SelectContent>{REFERENCE_TYPES.map((r) => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}</SelectContent>
                 </Select>
               </FormField>
               {adjustForm.reference_type !== "manual" && (
                 <FormField label="Reference ID" id="adj_ref_id">
-                  <Input
-                    id="adj_ref_id"
-                    type="number"
-                    placeholder="Reference record ID"
-                    value={adjustForm.reference_id}
-                    onChange={(e) => setAdjustForm((f) => ({ ...f, reference_id: e.target.value }))}
-                  />
+                  <Input id="adj_ref_id" type="number" placeholder="Reference record ID" value={adjustForm.reference_id} onChange={(e) => setAdjustForm((f) => ({ ...f, reference_id: e.target.value }))} />
                 </FormField>
               )}
               <FormField label="Warehouse Location" id="adj_wh">
@@ -1600,14 +1370,16 @@ function InventoryTab() {
         </SheetContent>
       </Sheet>
 
-      {/* Transaction History Sheet */}
+      {/* ════════════════════════════════════════════════════════════════════
+          TRANSACTION HISTORY SHEET  (lifted from InventoryTab)
+      ════════════════════════════════════════════════════════════════════ */}
       <Sheet open={txOpen} onOpenChange={setTxOpen}>
         <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
           <SheetHeader>
             <SheetTitle>Transaction History</SheetTitle>
             <SheetDescription>{txProductName}{txGrade ? ` · Grade ${txGrade}` : ""}</SheetDescription>
           </SheetHeader>
-          <div className="mt-6 space-y-3">
+          <div className="mt-6 space-y-3 px-3">
             {txLoading ? (
               <p className="text-center text-muted-foreground text-sm">Loading...</p>
             ) : transactions.length === 0 ? (
@@ -1657,353 +1429,21 @@ function InventoryTab() {
           </div>
         </SheetContent>
       </Sheet>
-    </>
-  );
-}
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// PRICING TAB
-// ═══════════════════════════════════════════════════════════════════════════════
-
-function PricingTab() {
-  const [products, setProducts] = useState<any[]>([]);
-  const [allProducts, setAllProducts] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState<number | null>(null);
-  const [totalItems, setTotalItems] = useState<number | null>(null);
-  const limit = 10;
-  const [productFilter, setProductFilter] = useState<string>("");
-  const [gradeFilter, setGradeFilter] = useState<string>("");
-  const [activeFilter, setActiveFilter] = useState<string>("true");
-
-  // Expanded product detail rows: productId → pricing[]
-  const [expandedPricing, setExpandedPricing] = useState<Record<number, any[]>>({});
-  const [expandingId, setExpandingId] = useState<number | null>(null);
-
-  // Add pricing sheet
-  const [sheetOpen, setSheetOpen] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [pricingForm, setPricingForm] = useState({
-    product_id: "",
-    grade: "A" as Grade,
-    base_price_per_kg: "",
-    wholesale_price_per_kg: "",
-    retail_price_per_kg: "",
-    minimum_order_kg: "10",
-    effective_from: "",
-    effective_to: "",
-  });
-
-  const fetchAllProducts = useCallback(async () => {
-    try {
-      const res = await api.get("/admin/products", { params: { limit: 100, page: 1 } });
-      const data = res.data?.data ?? res.data;
-      setAllProducts(Array.isArray(data?.products) ? data.products : []);
-    } catch { /* silent */ }
-  }, []);
-
-  const fetchPricing = useCallback(async () => {
-    setLoading(true);
-    // Clear expanded rows when filters/page change
-    setExpandedPricing({});
-    try {
-      const params: any = { page, limit };
-      if (productFilter) params.product_id = Number(productFilter);
-      if (gradeFilter) params.grade = gradeFilter;
-      if (activeFilter !== "") params.is_active = activeFilter === "true";
-      const res = await api.get("/admin/pricing", { params });
-      const data = res.data?.data ?? res.data;
-      setProducts(Array.isArray(data?.products) ? data.products : []);
-      setTotalPages(data?.pagination?.total_pages ?? null);
-      setTotalItems(data?.pagination?.total ?? null);
-    } catch (err: any) {
-      toast.error(err.response?.data?.message ?? "Failed to fetch pricing");
-    } finally {
-      setLoading(false);
-    }
-  }, [page, limit, productFilter, gradeFilter, activeFilter]);
-
-  useEffect(() => { fetchAllProducts(); }, [fetchAllProducts]);
-  useEffect(() => { fetchPricing(); }, [fetchPricing]);
-
-  // Toggle expand: fetch full product detail to get its pricing[]
-  const toggleExpand = async (productId: number) => {
-    if (expandedPricing[productId]) {
-      setExpandedPricing((prev) => {
-        const next = { ...prev };
-        delete next[productId];
-        return next;
-      });
-      return;
-    }
-    setExpandingId(productId);
-    try {
-      const res = await api.get(`/admin/products/${productId}`);
-      const detail = res.data?.data ?? res.data;
-      setExpandedPricing((prev) => ({ ...prev, [productId]: detail?.pricing ?? [] }));
-    } catch {
-      toast.error("Failed to load pricing details");
-    } finally {
-      setExpandingId(null);
-    }
-  };
-
-  const handleAddPricing = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!pricingForm.product_id) { toast.error("Product is required"); return; }
-    if (!pricingForm.base_price_per_kg || !pricingForm.wholesale_price_per_kg) { toast.error("Base and wholesale prices are required"); return; }
-    if (!pricingForm.effective_from) { toast.error("Effective from date is required"); return; }
-    setSaving(true);
-    try {
-      const body: any = {
-        product_id: Number(pricingForm.product_id),
-        grade: pricingForm.grade,
-        base_price_per_kg: Number(pricingForm.base_price_per_kg),
-        wholesale_price_per_kg: Number(pricingForm.wholesale_price_per_kg),
-        minimum_order_kg: Number(pricingForm.minimum_order_kg) || 10,
-        effective_from: pricingForm.effective_from,
-      };
-      if (pricingForm.retail_price_per_kg) body.retail_price_per_kg = Number(pricingForm.retail_price_per_kg);
-      if (pricingForm.effective_to) body.effective_to = pricingForm.effective_to;
-
-      await api.post("/admin/pricing", body);
-      toast.success("Pricing added successfully");
-      setSheetOpen(false);
-      // Refresh expanded row if it's open for the affected product
-      const pid = Number(pricingForm.product_id);
-      if (expandedPricing[pid]) {
-        const res = await api.get(`/admin/products/${pid}`);
-        const detail = res.data?.data ?? res.data;
-        setExpandedPricing((prev) => ({ ...prev, [pid]: detail?.pricing ?? [] }));
-      }
-      fetchPricing();
-    } catch (err: any) {
-      toast.error(err.response?.data?.message ?? "Failed to add pricing");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleDeletePricing = async (pricingId: number, productId: number) => {
-    if (!confirm("Deactivate this pricing entry?")) return;
-    try {
-      await api.delete(`/admin/pricing/${pricingId}`);
-      toast.success("Pricing deactivated");
-      // Refresh expanded row
-      if (expandedPricing[productId]) {
-        const res = await api.get(`/admin/products/${productId}`);
-        const detail = res.data?.data ?? res.data;
-        setExpandedPricing((prev) => ({ ...prev, [productId]: detail?.pricing ?? [] }));
-      }
-      fetchPricing();
-    } catch (err: any) {
-      toast.error(err.response?.data?.message ?? "Failed to deactivate pricing");
-    }
-  };
-
-  return (
-    <>
-      <Card className="border-none shadow-md ring-1 ring-border bg-white/70 backdrop-blur-sm">
-        {/* Toolbar */}
-        <div className="flex flex-col gap-3 p-4 border-b bg-muted/30 md:flex-row md:items-center md:justify-between">
-          <div className="flex flex-wrap gap-2">
-            <Select value={productFilter || "all_prod"} onValueChange={(v) => { setProductFilter(v === "all_prod" ? "" : v); setPage(1); }}>
-              <SelectTrigger className="w-48 bg-white dark:bg-card">
-                <SelectValue placeholder="All Products" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all_prod">All Products</SelectItem>
-                {allProducts.map((p) => <SelectItem key={p.product_id} value={String(p.product_id)}>{p.product_name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={gradeFilter || "all_grade"} onValueChange={(v) => { setGradeFilter(v === "all_grade" ? "" : v); setPage(1); }}>
-              <SelectTrigger className="w-36 bg-white dark:bg-card">
-                <SelectValue placeholder="All Grades" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all_grade">All Grades</SelectItem>
-                {GRADES.map((g) => <SelectItem key={g} value={g}>Grade {g}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={activeFilter || "all_status"} onValueChange={(v) => { setActiveFilter(v === "all_status" ? "" : v); setPage(1); }}>
-              <SelectTrigger className="w-36 bg-white dark:bg-card">
-                <SelectValue placeholder="All Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all_status">All Status</SelectItem>
-                <SelectItem value="true">Active</SelectItem>
-                <SelectItem value="false">Inactive</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <Button size="sm" onClick={() => {
-            setPricingForm({ product_id: "", grade: "A", base_price_per_kg: "", wholesale_price_per_kg: "", retail_price_per_kg: "", minimum_order_kg: "10", effective_from: "", effective_to: "" });
-            setSheetOpen(true);
-          }}>
-            <IconPlus className="mr-2 size-4" /> Add Pricing
-          </Button>
-        </div>
-
-        <div className="overflow-x-auto">
-          <Table className="min-w-[900px]">
-            <TableHeader>
-              <TableRow className="bg-muted/50 hover:bg-muted/50">
-                <TableHead className="px-4 py-3 w-8" />
-                <TableHead className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Product</TableHead>
-                <TableHead className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Code</TableHead>
-                <TableHead className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Stock</TableHead>
-                <TableHead className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Grade Stock</TableHead>
-                <TableHead className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Active Pricing</TableHead>
-                <TableHead className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">Loading pricing data...</TableCell>
-                </TableRow>
-              ) : products.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">No pricing data found.</TableCell>
-                </TableRow>
-              ) : (
-                products.map((p) => {
-                  const isExpanded = Boolean(expandedPricing[p.product_id]);
-                  const pricingRows = expandedPricing[p.product_id] ?? [];
-                  return (
-                    <>
-                      {/* Product summary row */}
-                      <TableRow
-                        key={`prod-${p.product_id}`}
-                        className="group hover:bg-primary/5 border-b cursor-pointer"
-                        onClick={() => toggleExpand(p.product_id)}
-                      >
-                        <TableCell className="px-4 py-3">
-                          {expandingId === p.product_id ? (
-                            <span className="text-xs text-muted-foreground">…</span>
-                          ) : (
-                            <IconChevronRight className={`size-4 text-muted-foreground transition-transform ${isExpanded ? "rotate-90" : ""}`} />
-                          )}
-                        </TableCell>
-                        <TableCell className="px-4 py-3 font-semibold">{p.product_name}</TableCell>
-                        <TableCell className="px-4 py-3">
-                          <Badge variant="outline" className="font-mono text-xs">{p.product_code}</Badge>
-                        </TableCell>
-                        <TableCell className="px-4 py-3">{formatKg(p.current_stock_kg)}</TableCell>
-                        <TableCell className="px-4 py-3">
-                          <div className="flex gap-1">
-                            {GRADES.map((g) => (
-                              <span key={g} className="inline-flex items-center gap-1 text-xs bg-muted/60 rounded px-1.5 py-0.5">
-                                <span className="font-bold">{g}</span>
-                                <span className="text-muted-foreground">{p.grade_stock?.[g] ?? 0}</span>
-                              </span>
-                            ))}
-                          </div>
-                        </TableCell>
-                        <TableCell className="px-4 py-3">
-                          <span className={`text-sm font-semibold ${(p.active_pricing_count ?? 0) === 0 ? "text-red-500" : "text-emerald-600"}`}>
-                            {p.active_pricing_count ?? 0} active
-                          </span>
-                        </TableCell>
-                        <TableCell className="px-4 py-3">
-                          <StatusBadge active={p.is_active} />
-                        </TableCell>
-                      </TableRow>
-
-                      {/* Expanded per-grade pricing rows */}
-                      {isExpanded && (
-                        pricingRows.length === 0 ? (
-                          <TableRow key={`empty-${p.product_id}`} className="bg-muted/10">
-                            <TableCell colSpan={7} className="px-8 py-3 text-sm text-muted-foreground italic">
-                              No pricing records for this product.
-                            </TableCell>
-                          </TableRow>
-                        ) : (
-                          pricingRows.map((pr: any) => (
-                            <TableRow key={`pr-${pr.pricing_id}`} className="bg-muted/10 hover:bg-muted/20 border-b">
-                              <TableCell className="px-4 py-2" />
-                              <TableCell className="px-8 py-2" colSpan={2}>
-                                <div className="flex items-center gap-2">
-                                  <GradeBadge grade={pr.grade} />
-                                  <StatusBadge active={pr.is_active} />
-                                  <span className="text-xs text-muted-foreground">
-                                    {formatDate(pr.effective_from)} → {pr.effective_to ? formatDate(pr.effective_to) : "Ongoing"}
-                                  </span>
-                                </div>
-                              </TableCell>
-                              <TableCell className="px-4 py-2">
-                                <div className="flex flex-col gap-0.5 text-xs">
-                                  <span className="text-muted-foreground">Base: <span className="font-semibold text-foreground">{formatRs(pr.base_price_per_kg)}/kg</span></span>
-                                  <span className="text-muted-foreground">Wholesale: <span className="font-semibold text-foreground">{formatRs(pr.wholesale_price_per_kg)}/kg</span></span>
-                                </div>
-                              </TableCell>
-                              <TableCell className="px-4 py-2">
-                                <div className="flex flex-col gap-0.5 text-xs">
-                                  <span className="text-muted-foreground">Retail: <span className="font-semibold text-foreground">{formatRs(pr.retail_price_per_kg)}/kg</span></span>
-                                  <span className="text-muted-foreground">Min order: <span className="font-semibold text-foreground">{formatKg(pr.minimum_order_kg)}</span></span>
-                                </div>
-                              </TableCell>
-                              <TableCell className="px-4 py-2" />
-                              <TableCell className="px-4 py-2 text-right">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="size-7 text-red-500 hover:text-red-600"
-                                  title="Deactivate pricing"
-                                  onClick={(e) => { e.stopPropagation(); handleDeletePricing(pr.pricing_id, p.product_id); }}
-                                >
-                                  <IconTrash className="size-3.5" />
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                          ))
-                        )
-                      )}
-                    </>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
-        </div>
-
-        {/* Pagination */}
-        <div className="flex flex-col gap-3 border-t bg-muted/20 p-4 md:flex-row md:items-center md:justify-between">
-          <div className="text-sm text-muted-foreground">
-            Page <span className="font-semibold text-foreground">{page}</span>
-            {totalPages ? ` of ${totalPages}` : ""}
-            {totalItems != null ? ` | ${totalItems} total` : ""}
-          </div>
-          <div className="flex gap-2">
-            <Button size="sm" variant="outline" disabled={page <= 1 || loading} onClick={() => setPage((p) => Math.max(1, p - 1))}>Previous</Button>
-            <Button size="sm" variant="outline" disabled={!totalPages || page >= totalPages || loading} onClick={() => setPage((p) => p + 1)}>Next</Button>
-          </div>
-        </div>
-      </Card>
-
-      {/* Add Pricing Sheet — unchanged except retail_price fix below */}
-      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+      {/* ════════════════════════════════════════════════════════════════════
+          ADD PRICING SHEET  (lifted from PricingTab)
+      ════════════════════════════════════════════════════════════════════ */}
+      <Sheet open={pricingSheetOpen} onOpenChange={setPricingSheetOpen}>
         <SheetContent className="w-full sm:max-w-md overflow-y-auto">
           <SheetHeader>
             <SheetTitle>Add Pricing</SheetTitle>
             <SheetDescription>Create a new pricing entry for a product grade.</SheetDescription>
           </SheetHeader>
-          <form onSubmit={handleAddPricing} className="mt-6 space-y-4">
-            <FormField label="Product *" id="pr_product">
-              <Select value={pricingForm.product_id || "none"} onValueChange={(v) => setPricingForm((f) => ({ ...f, product_id: v === "none" ? "" : v }))}>
-                <SelectTrigger className="bg-white dark:bg-card"><SelectValue placeholder="Select product" /></SelectTrigger>
-                <SelectContent>
-                  {allProducts.map((p) => <SelectItem key={p.product_id} value={String(p.product_id)}>{p.product_name} ({p.product_code})</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </FormField>
+          <form onSubmit={handleAddPricing} className="mt-6 space-y-4 px-4">
             <FormField label="Grade *" id="pr_grade">
               <Select value={pricingForm.grade} onValueChange={(v) => setPricingForm((f) => ({ ...f, grade: v as Grade }))}>
                 <SelectTrigger className="bg-white dark:bg-card"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {GRADES.map((g) => <SelectItem key={g} value={g}>Grade {g}</SelectItem>)}
-                </SelectContent>
+                <SelectContent>{GRADES.map((g) => <SelectItem key={g} value={g}>Grade {g}</SelectItem>)}</SelectContent>
               </Select>
             </FormField>
             <FormField label="Base Price / kg (Rs) *" id="pr_base">
@@ -2025,8 +1465,8 @@ function PricingTab() {
               <Input id="pr_et" type="date" value={pricingForm.effective_to} onChange={(e) => setPricingForm((f) => ({ ...f, effective_to: e.target.value }))} />
             </FormField>
             <SheetFooter className="pt-4 gap-2">
-              <Button type="button" variant="outline" onClick={() => setSheetOpen(false)} disabled={saving}>Cancel</Button>
-              <Button type="submit" disabled={saving}>{saving ? "Saving..." : "Add Pricing"}</Button>
+              <Button type="button" variant="outline" onClick={() => setPricingSheetOpen(false)} disabled={pricingSaving}>Cancel</Button>
+              <Button type="submit" disabled={pricingSaving}>{pricingSaving ? "Saving..." : "Add Pricing"}</Button>
             </SheetFooter>
           </form>
         </SheetContent>
@@ -2036,7 +1476,179 @@ function PricingTab() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// SHARED COMPONENTS
+// PRODUCT ACCORDION CONTENT
+// Renders the expanded inline panel with Inventory + Pricing side by side
+// ═══════════════════════════════════════════════════════════════════════════════
+
+interface ProductAccordionContentProps {
+  product: any;
+  lowStock: any[];
+  onAdjustStock: (grade: Grade) => void;
+  onViewHistory: (grade: Grade) => void;
+  onAddPricing: () => void;
+  onDeletePricing: (pricingId: number) => void;
+}
+
+function ProductAccordionContent({
+  product,
+  lowStock,
+  onAdjustStock,
+  onViewHistory,
+  onAddPricing,
+  onDeletePricing,
+}: ProductAccordionContentProps) {
+  return (
+    <div className="px-10 py-5 grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* ── LEFT: Inventory by Grade ── */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            Inventory by Grade
+          </p>
+          <Button
+            size="sm"
+            variant="outline"
+            className="text-xs h-7 px-2"
+            onClick={(e) => { e.stopPropagation(); onAdjustStock("A"); }}
+          >
+            <IconRefresh className="mr-1 size-3" /> Adjust Stock
+          </Button>
+        </div>
+
+        <div className="space-y-2">
+          {(product.inventory ?? []).length === 0 ? (
+            <p className="text-sm text-muted-foreground italic">No inventory records.</p>
+          ) : (
+            (product.inventory as any[]).map((inv: any) => {
+              const isBelowMin = lowStock.some(
+                (ls) => ls.product_id === product.product_id && ls.grade === inv.grade
+              );
+              return (
+                <div key={inv.inventory_id} className="rounded-xl border bg-card p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <GradeBadge grade={inv.grade} />
+                    <span className={`text-sm font-semibold flex items-center gap-1 ${isBelowMin ? "text-amber-600" : ""}`}>
+                      {isBelowMin && <IconAlertTriangle className="size-3.5 text-amber-500" />}
+                      {formatKg(inv.available_quantity_kg)} available
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm text-muted-foreground">
+                    <div className="flex justify-between">
+                      <span>Reserved</span>
+                      <span className="font-medium text-foreground">{formatKg(inv.reserved_quantity_kg)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Min Alert</span>
+                      <span className={`font-medium ${isBelowMin ? "text-amber-600" : "text-foreground"}`}>
+                        {formatKg(inv.minimum_stock_alert)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Location</span>
+                      <span className="font-medium text-foreground">{inv.warehouse_location ?? "--"}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Last Restocked</span>
+                      <span className="font-medium text-foreground">{formatDate(inv.last_restocked_at)}</span>
+                    </div>
+                  </div>
+                  {/* Per-grade action row */}
+                  <div className="flex items-center gap-3 mt-3 pt-2.5 border-t">
+                    <button
+                      type="button"
+                      className="text-[11px] text-primary underline underline-offset-2 hover:opacity-70"
+                      onClick={(e) => { e.stopPropagation(); onViewHistory(inv.grade as Grade); }}
+                    >
+                      View History
+                    </button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-xs h-6 px-2 ml-auto"
+                      onClick={(e) => { e.stopPropagation(); onAdjustStock(inv.grade as Grade); }}
+                    >
+                      <IconRefresh className="mr-1 size-3" /> Adjust Grade {inv.grade}
+                    </Button>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+
+      {/* ── RIGHT: Pricing by Grade ── */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            Pricing by Grade
+          </p>
+          <Button
+            size="sm"
+            variant="outline"
+            className="text-xs h-7 px-2"
+            onClick={(e) => { e.stopPropagation(); onAddPricing(); }}
+          >
+            <IconPlus className="mr-1 size-3" /> Add Pricing
+          </Button>
+        </div>
+
+        <div className="space-y-2">
+          {(product.pricing ?? []).length === 0 ? (
+            <p className="text-sm text-muted-foreground italic">No pricing records.</p>
+          ) : (
+            (product.pricing as any[]).map((pr: any) => (
+              <div key={pr.pricing_id} className="rounded-xl border bg-card p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <GradeBadge grade={pr.grade} />
+                    <StatusBadge active={pr.is_active} />
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-7 text-red-500 hover:text-red-600"
+                    title="Deactivate pricing"
+                    onClick={(e) => { e.stopPropagation(); onDeletePricing(pr.pricing_id); }}
+                  >
+                    <IconTrash className="size-3.5" />
+                  </Button>
+                </div>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm text-muted-foreground">
+                  <div className="flex justify-between">
+                    <span>Base Price</span>
+                    <span className="font-semibold text-foreground">{formatRs(pr.base_price_per_kg)}/kg</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Wholesale</span>
+                    <span className="font-semibold text-foreground">{formatRs(pr.wholesale_price_per_kg)}/kg</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Retail</span>
+                    <span className="font-semibold text-foreground">{formatRs(pr.retail_price_per_kg)}/kg</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Min Order</span>
+                    <span className="font-semibold text-foreground">{formatKg(pr.minimum_order_kg)}</span>
+                  </div>
+                  <div className="flex justify-between col-span-2">
+                    <span>Effective</span>
+                    <span className="font-medium text-foreground">
+                      {formatDate(pr.effective_from)} → {pr.effective_to ? formatDate(pr.effective_to) : "Ongoing"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SHARED COMPONENTS  (unchanged)
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function StatusBadge({ active }: { active: boolean }) {

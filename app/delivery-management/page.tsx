@@ -164,7 +164,10 @@ export default function EmployeeLogisticsManagement() {
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; apiId: string; name: string } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Status toggle
+  // Status toggle — NEW: dialog-based instead of window.confirm
+  const [statusTarget, setStatusTarget] = useState<{ person: NormalizedPerson } | null>(null);
+  const [isTogglingStatus, setIsTogglingStatus] = useState(false);
+
   const [statusUpdatingId, setStatusUpdatingId] = useState<string | null>(null);
 
   // ── Search debounce ──
@@ -270,11 +273,17 @@ export default function EmployeeLogisticsManagement() {
     }
   };
 
-  const handleToggleStatus = async (person: NormalizedPerson) => {
-    const next = !person.isActive;
-    const label = next ? "activate" : "deactivate";
-    if (!window.confirm(`Are you sure you want to ${label} ${person.name}?`)) return;
+  // Opens the status confirmation dialog
+  const handleToggleStatus = (person: NormalizedPerson) => {
+    setStatusTarget({ person });
+  };
 
+  // Executes the status toggle after confirmation
+  const confirmToggleStatus = async () => {
+    if (!statusTarget || isTogglingStatus) return;
+    const person = statusTarget.person;
+    const next = !person.isActive;
+    setIsTogglingStatus(true);
     setStatusUpdatingId(person.id);
     try {
       const endpoint = next
@@ -284,12 +293,14 @@ export default function EmployeeLogisticsManagement() {
       toast.success(next ? "Activated" : "Deactivated", {
         description: `${person.name} has been ${next ? "activated" : "deactivated"}.`,
       });
+      setStatusTarget(null);
       await fetchPersonnel();
     } catch (err: any) {
       toast.error("Error", {
         description: err.response?.data?.message || "Failed to update status.",
       });
     } finally {
+      setIsTogglingStatus(false);
       setStatusUpdatingId(null);
     }
   };
@@ -949,6 +960,64 @@ export default function EmployeeLogisticsManagement() {
                   disabled={isDeleting}
                 >
                   {isDeleting ? "Deleting..." : "Delete"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* ── Status Toggle Confirmation Dialog ── */}
+          <Dialog
+            open={!!statusTarget}
+            onOpenChange={(open) => { if (!open) setStatusTarget(null); }}
+          >
+            <DialogContent className="sm:max-w-[420px]">
+              <DialogHeader>
+                <DialogTitle
+                  className={
+                    statusTarget?.person.isActive ? "text-amber-600" : "text-emerald-600"
+                  }
+                >
+                  {statusTarget?.person.isActive
+                    ? "Deactivate Personnel"
+                    : "Activate Personnel"}
+                </DialogTitle>
+                <DialogDescription>
+                  Are you sure you want to{" "}
+                  {statusTarget?.person.isActive ? "deactivate" : "activate"}{" "}
+                  <span className="font-semibold text-foreground">
+                    {statusTarget?.person.name}
+                  </span>
+                  ?{" "}
+                  {statusTarget?.person.isActive
+                    ? "They will lose access to the app and cannot accept new deliveries."
+                    : "They will regain full access to the app and can accept deliveries."}
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setStatusTarget(null)}
+                  disabled={isTogglingStatus}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant={statusTarget?.person.isActive ? "destructive" : "default"}
+                  className={
+                    !statusTarget?.person.isActive
+                      ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                      : ""
+                  }
+                  onClick={confirmToggleStatus}
+                  disabled={isTogglingStatus}
+                >
+                  {isTogglingStatus
+                    ? statusTarget?.person.isActive
+                      ? "Deactivating..."
+                      : "Activating..."
+                    : statusTarget?.person.isActive
+                    ? "Yes, Deactivate"
+                    : "Yes, Activate"}
                 </Button>
               </DialogFooter>
             </DialogContent>

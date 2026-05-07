@@ -35,13 +35,13 @@ export default function Page() {
     setMounted(true);
   }, []);
 
-  if (!mounted) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <p className="text-muted-foreground">Loading...</p>
-      </div>
-    );
-  }
+  // if (!mounted) {
+  //   return (
+  //     <div className="flex min-h-screen items-center justify-center">
+  //       <p className="text-muted-foreground">Loading...</p>
+  //     </div>
+  //   );
+  // }
 
   return (
     <ProtectedRoute>
@@ -85,14 +85,13 @@ export default function Page() {
                 )}
 
                 {/* ── KPI cards ── */}
-                <SectionCards summary={data?.summary} loading={loading} />
+                <SectionCards summary={data?.summary}  />
 
                 {/* ── Main chart: orders / revenue ── */}
                 <div className="px-4 lg:px-6">
                   <ChartAreaInteractive
                     ordersChart={data?.ordersChart ?? []}
                     revenueChart={data?.revenueChart ?? []}
-                    loading={loading}
                   />
                 </div>
 
@@ -100,18 +99,15 @@ export default function Page() {
                 <div className="grid grid-cols-1 gap-4 px-4 lg:px-6 xl:grid-cols-2">
                   <ChartRegistrations
                     data={data?.registrationsChart ?? []}
-                    loading={loading}
                   />
                   <ChartProcurement
                     data={data?.procurementChart ?? []}
-                    loading={loading}
                   />
                 </div>
 
                 {/* ── Daily reports table ── */}
                 <DataTable
                   reports={data?.dailyReports?.reports ?? []}
-                  loading={loading}
                 />
 
               </div>
