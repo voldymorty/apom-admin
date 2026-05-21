@@ -47,6 +47,15 @@ import {
   SheetTrigger,
   SheetFooter,
 } from "@/components/ui/sheet";
+// ── ADDED: Dialog imports for activate / deactivate confirmation ──
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Label } from "@/components/ui/label";
 import ProtectedRoute from "../routes/ProtectedRoute";
@@ -67,6 +76,14 @@ export default function VendorManagement() {
   const [sortBy] = useState("created_at");
   const [order] = useState<"asc" | "desc">("desc");
   const [statusUpdatingId, setStatusUpdatingId] = useState<string | null>(null);
+
+  // ── ADDED: status toggle confirmation dialog state ──
+  const [statusTarget, setStatusTarget] = useState<{
+    id: string;
+    shopName: string;
+    isActive: boolean;
+  } | null>(null);
+  const [isTogglingStatus, setIsTogglingStatus] = useState(false);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -115,11 +132,16 @@ export default function VendorManagement() {
     fetchVendors();
   }, [debouncedSearch, statusFilter, page, limit, sortBy, order]);
 
-  const tableVendors = useMemo(() => vendors.map((vendor, index) => normalizeVendor(vendor, index)), [vendors]);
+  const tableVendors = useMemo(
+    () => vendors.map((vendor, index) => normalizeVendor(vendor, index)),
+    [vendors]
+  );
+
   const filteredVendors = useMemo(() => {
     const term = search.trim().toLowerCase();
     return tableVendors.filter((vendor) => {
-      if (statusFilter !== "all" && vendor.isActive !== (statusFilter === "active")) return false;
+      if (statusFilter !== "all" && vendor.isActive !== (statusFilter === "active"))
+        return false;
       if (!term) return true;
       return (
         vendor.shopName.toLowerCase().includes(term) ||
@@ -135,14 +157,20 @@ export default function VendorManagement() {
 
   const canGoPrev = page > 1;
   const canGoNext = totalPages ? page < totalPages : vendors.length === limit;
-  const activeOnPage = useMemo(() => filteredVendors.filter((vendor) => vendor.isActive).length, [filteredVendors]);
+  const activeOnPage = useMemo(
+    () => filteredVendors.filter((vendor) => vendor.isActive).length,
+    [filteredVendors]
+  );
   const inactiveOnPage = Math.max(0, filteredVendors.length - activeOnPage);
   const totalOrdersOnPage = useMemo(
-    () => filteredVendors.reduce((sum, vendor) => sum + (vendor.totalOrders ?? 0), 0),
+    () =>
+      filteredVendors.reduce((sum, vendor) => sum + (vendor.totalOrders ?? 0), 0),
     [filteredVendors]
   );
   const totalVendorsLabel =
-    totalItems !== null ? totalItems.toLocaleString("en-IN") : String(tableVendors.length);
+    totalItems !== null
+      ? totalItems.toLocaleString("en-IN")
+      : String(tableVendors.length);
   const ordersLabel = totalOrdersOnPage.toLocaleString("en-IN");
 
   const handleAddVendor = (e: React.FormEvent) => {
@@ -163,26 +191,39 @@ export default function VendorManagement() {
     setPage(1);
   };
 
-  const handleToggleStatus = async (vendor: { id: string; shopName: string; isActive: boolean }) => {
-    const nextActive = !vendor.isActive;
-    const actionLabel = nextActive ? "activate" : "deactivate";
-    const confirmed = window.confirm(`Are you sure you want to ${actionLabel} ${vendor.shopName}?`);
-    if (!confirmed) return;
+  // ── CHANGED: opens the confirmation dialog instead of window.confirm ──
+  const handleToggleStatus = (vendor: {
+    id: string;
+    shopName: string;
+    isActive: boolean;
+  }) => {
+    setStatusTarget(vendor);
+  };
 
-    setStatusUpdatingId(vendor.id);
+  // ── ADDED: executes the API call after user confirms in the dialog ──
+  const confirmToggleStatus = async () => {
+    if (!statusTarget || isTogglingStatus) return;
+    const nextActive = !statusTarget.isActive;
+    setIsTogglingStatus(true);
+    setStatusUpdatingId(statusTarget.id);
     try {
       const endpoint = nextActive
-        ? `/admin/vendors/${encodeURIComponent(vendor.id)}/activate`
-        : `/admin/vendors/${encodeURIComponent(vendor.id)}/deactivate`;
+        ? `/admin/vendors/${encodeURIComponent(statusTarget.id)}/activate`
+        : `/admin/vendors/${encodeURIComponent(statusTarget.id)}/deactivate`;
       await api.patch(endpoint);
       toast.success(nextActive ? "Vendor Activated" : "Vendor Deactivated", {
-        description: `${vendor.shopName} has been ${nextActive ? "activated" : "deactivated"}.`,
+        description: `${statusTarget.shopName} has been ${
+          nextActive ? "activated" : "deactivated"
+        }.`,
       });
+      setStatusTarget(null);
       await fetchVendors();
     } catch (err: any) {
-      const message = err.response?.data?.message || "Failed to update vendor status";
+      const message =
+        err.response?.data?.message || "Failed to update vendor status";
       toast.error("Error", { description: message });
     } finally {
+      setIsTogglingStatus(false);
       setStatusUpdatingId(null);
     }
   };
@@ -203,7 +244,9 @@ export default function VendorManagement() {
         <div className="flex flex-1 flex-col gap-6 p-4 md:p-6">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
-              <h1 className="text-3xl font-bold tracking-tight text-primary">Vendor Management</h1>
+                <h1 className="text-3xl font-bold tracking-tight text-black">
+                  Vendor Management
+                </h1>
               <p className="text-muted-foreground underline underline-offset-4 decoration-primary/30">
                 Manage retail partners, wholesalers, and their market activities.
               </p>
@@ -274,19 +317,49 @@ export default function VendorManagement() {
               <div className="flex gap-2">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="bg-white dark:bg-card hover:border-primary/50">
-                      <IconFilter className="mr-2 size-4" /> {statusFilter === "all" ? "Filter" : statusFilter === "active" ? "Active" : "Inactive"}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="bg-white dark:bg-card hover:border-primary/50"
+                      >
+                        <IconFilter className="mr-2 size-4" />{" "}
+                        {statusFilter === "all"
+                          ? "Filter"
+                          : statusFilter === "active"
+                          ? "Active"
+                          : "Inactive"}
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-48">
                     <DropdownMenuLabel>Filter by Status</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => handleStatusFilterChange("all")}>All Status</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleStatusFilterChange("active")}>Active Only</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleStatusFilterChange("inactive")}>Inactive Only</DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => handleStatusFilterChange("all")}
+                      >
+                        All Status
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => handleStatusFilterChange("active")}
+                      >
+                        Active Only
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => handleStatusFilterChange("inactive")}
+                      >
+                        Inactive Only
+                      </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-                <Button variant="outline" size="sm" className="bg-white dark:bg-card hover:border-primary/50" onClick={() => toast.info("Exporting records...", { description: "Vendor report generated." })}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="bg-white dark:bg-card hover:border-primary/50"
+                    onClick={() =>
+                      toast.info("Exporting records...", {
+                        description: "Vendor report generated.",
+                      })
+                    }
+                  >
                   Export
                 </Button>
               </div>
@@ -296,28 +369,54 @@ export default function VendorManagement() {
               <Table className="min-w-[800px]">
                 <TableHeader>
                   <TableRow className="bg-muted/50 hover:bg-muted/50 font-medium border-b border-border">
-                  <TableHead className="w-[70px] px-4 py-3 text-xs font-semibold uppercase tracking-wide">S.No</TableHead>
-                    <TableHead className="w-[200px] px-4 py-3 text-xs font-semibold uppercase tracking-wide">Vendor</TableHead>
-                    <TableHead className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Manager</TableHead>
-                    <TableHead className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">State</TableHead>
-                    <TableHead className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">District</TableHead>
-                    <TableHead className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">City</TableHead>
-                    <TableHead className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Type</TableHead>
-                    <TableHead className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Status</TableHead>
-                    <TableHead className="text-right px-4 py-3 text-xs font-semibold uppercase tracking-wide">Orders</TableHead>
-                    <TableHead className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide">Actions</TableHead>
+                      <TableHead className="w-[70px] px-4 py-3 text-xs font-semibold uppercase tracking-wide">
+                        S.No
+                      </TableHead>
+                      <TableHead className="w-[200px] px-4 py-3 text-xs font-semibold uppercase tracking-wide">
+                        Vendor
+                      </TableHead>
+                      <TableHead className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">
+                        Manager
+                      </TableHead>
+                      <TableHead className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">
+                        State
+                      </TableHead>
+                      <TableHead className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">
+                        District
+                      </TableHead>
+                      <TableHead className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">
+                        City
+                      </TableHead>
+                      <TableHead className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">
+                        Type
+                      </TableHead>
+                      <TableHead className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">
+                        Status
+                      </TableHead>
+                      <TableHead className="text-right px-4 py-3 text-xs font-semibold uppercase tracking-wide">
+                        Orders
+                      </TableHead>
+                      <TableHead className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide">
+                        Actions
+                      </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={10} className="py-10 text-center text-muted-foreground">
+                        <TableCell
+                          colSpan={10}
+                          className="py-10 text-center text-muted-foreground"
+                        >
                         Loading vendors...
                       </TableCell>
                     </TableRow>
                   ) : filteredVendors.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={10} className="py-10 text-center text-muted-foreground">
+                        <TableCell
+                          colSpan={10}
+                          className="py-10 text-center text-muted-foreground"
+                        >
                         {error || "No vendors found matching your criteria."}
                       </TableCell>
                     </TableRow>
@@ -325,9 +424,10 @@ export default function VendorManagement() {
                     filteredVendors.map((vendor, index) => {
                       const serialNumber = (page - 1) * limit + index + 1;
                       return (
-                        <TableRow key={vendor.id} className="group hover:bg-primary/5 transition-colors border-b border-border last:border-0">
-                          
-                          {/* NEW — was completely missing */}
+                          <TableRow
+                            key={vendor.id}
+                            className="group hover:bg-primary/5 transition-colors border-b border-border last:border-0"
+                          >
                           <TableCell className="px-4 py-3 align-middle font-medium text-muted-foreground">
                             {serialNumber}
                           </TableCell>
@@ -360,7 +460,10 @@ export default function VendorManagement() {
                           </TableCell>
 
                           <TableCell className="px-4 py-3 align-middle">
-                            <Badge variant="outline" className="bg-blue-50 text-blue-700 dark:bg-blue-950/30 border-blue-200 text-[10px] font-bold uppercase py-0.5">
+                              <Badge
+                                variant="outline"
+                                className="bg-blue-50 text-blue-700 dark:bg-blue-950/30 border-blue-200 text-[10px] font-bold uppercase py-0.5"
+                              >
                               {vendor.type}
                             </Badge>
                           </TableCell>
@@ -370,7 +473,7 @@ export default function VendorManagement() {
                               variant="default"
                               className={
                                 vendor.status === "Active"
-                                  ? "bg-emerald-500/10 text-emerald-600 border-emerald-200"
+                                  ? "bg-emerald-500/10 text-emerald-600 border-emerald-200 "
                                   : "bg-amber-500/10 text-amber-600 border-amber-200"
                               }
                             >
@@ -390,25 +493,38 @@ export default function VendorManagement() {
                                 size="icon"
                                 className="group-hover:bg-primary/10 group-hover:text-primary transition-colors"
                               >
-                                <Link href={`/vendor-management/vendor_detail_page?id=${encodeURIComponent(vendor.id)}`}>
+                                  <Link
+                                    href={`/vendor-management/vendor_detail_page?id=${encodeURIComponent(
+                                      vendor.id
+                                    )}`}
+                                  >
                                   <IconEye className="size-4" />
                                   <span className="sr-only">View vendor</span>
                                 </Link>
                               </Button>
+                                {/* ── UNCHANGED: button now opens dialog instead of window.confirm ── */}
                               <Button
                                 size="sm"
                                 variant="outline"
                                 className={
                                   vendor.isActive
-                                    ? "border-amber-200 text-amber-700 hover:bg-red-800"
-                                    : "border-emerald-200 text-emerald-700 hover:bg-emerald-800"
+                                      ? "border-amber-200 text-amber-700 hover:bg-red-500"
+                                      : "border-emerald-200 text-emerald-700 hover:bg-green-500"
                                 }
                                 onClick={() => handleToggleStatus(vendor)}
                                 disabled={statusUpdatingId === vendor.id}
-                                title={vendor.isActive ? "Deactivate vendor" : "Activate vendor"}
+                                  title={
+                                    vendor.isActive
+                                      ? "Deactivate vendor"
+                                      : "Activate vendor"
+                                  }
                               >
                                 <IconPower className="mr-1.5 size-3.5" />
-                                {vendor.isActive ? "Deactivate" : "Activate"}
+                                  {statusUpdatingId === vendor.id
+                                    ? "Updating..."
+                                    : vendor.isActive
+                                    ? "Deactivate"
+                                    : "Activate"}
                               </Button>
                             </div>
                           </TableCell>
@@ -419,9 +535,11 @@ export default function VendorManagement() {
                 </TableBody>
               </Table>
             </div>
+
             <div className="flex flex-col gap-3 border-t bg-muted/20 p-4 md:flex-row md:items-center md:justify-between">
               <div className="text-sm text-muted-foreground">
-                Page <span className="font-semibold text-foreground">{page}</span>
+                  Page{" "}
+                  <span className="font-semibold text-foreground">{page}</span>
                 {totalPages ? ` of ${totalPages}` : ""}
                 {totalItems !== null ? ` | ${totalItems} total` : ""}
               </div>
@@ -450,7 +568,9 @@ export default function VendorManagement() {
                   className="bg-white dark:bg-card hover:border-primary/50"
                   onClick={() => {
                     setPage(1);
-                    setLimit((prev) => (prev === 10 ? 20 : prev === 20 ? 50 : 10));
+                      setLimit((prev) =>
+                        prev === 10 ? 20 : prev === 20 ? 50 : 10
+                      );
                   }}
                 >
                   Limit: {limit}
@@ -461,9 +581,90 @@ export default function VendorManagement() {
         </div>
       </SidebarInset>
     </SidebarProvider>
+
+      {/* ── ADDED: Deactivate Confirmation Dialog ── */}
+      <Dialog
+        open={!!statusTarget && statusTarget.isActive}
+        onOpenChange={(open) => {
+          if (!open) setStatusTarget(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle className="text-amber-600">
+              Deactivate Vendor
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to deactivate{" "}
+              <span className="font-semibold text-foreground">
+                {statusTarget?.shopName}
+              </span>
+              ? They will no longer be able to place orders on the platform.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setStatusTarget(null)}
+              disabled={isTogglingStatus}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmToggleStatus}
+              disabled={isTogglingStatus}
+            >
+              {isTogglingStatus ? "Deactivating..." : "Yes, Deactivate"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── ADDED: Activate Confirmation Dialog ── */}
+      <Dialog
+        open={!!statusTarget && !statusTarget.isActive}
+        onOpenChange={(open) => {
+          if (!open) setStatusTarget(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle className="text-emerald-600">
+              Activate Vendor
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to activate{" "}
+              <span className="font-semibold text-foreground">
+                {statusTarget?.shopName}
+              </span>
+              ? They will regain full access and can place orders on the
+              platform.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setStatusTarget(null)}
+              disabled={isTogglingStatus}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              onClick={confirmToggleStatus}
+              disabled={isTogglingStatus}
+            >
+              {isTogglingStatus ? "Activating..." : "Yes, Activate"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </ProtectedRoute>
   );
 }
+
+// ─── Helpers (unchanged) ──────────────────────────────────────────────────────
 
 function extractVendors(payload: any): any[] {
   if (!payload) return [];
@@ -481,18 +682,25 @@ function extractVendors(payload: any): any[] {
     if (Array.isArray(candidate)) return candidate;
   }
 
-  const firstArrayKey = Object.keys(payload).find((key) => Array.isArray(payload[key]));
+  const firstArrayKey = Object.keys(payload).find((key) =>
+    Array.isArray(payload[key])
+  );
   if (firstArrayKey) return payload[firstArrayKey];
 
   if (payload.data && typeof payload.data === "object") {
-    const nestedArrayKey = Object.keys(payload.data).find((key) => Array.isArray(payload.data[key]));
+    const nestedArrayKey = Object.keys(payload.data).find((key) =>
+      Array.isArray(payload.data[key])
+    );
     if (nestedArrayKey) return payload.data[nestedArrayKey];
   }
 
   return [];
 }
 
-function extractPagination(payload: any): { totalItems: number | null; totalPages: number | null } {
+function extractPagination(payload: any): {
+  totalItems: number | null;
+  totalPages: number | null;
+} {
   const meta =
     payload?.pagination ||
     payload?.meta ||
@@ -570,11 +778,7 @@ function normalizeVendor(raw: any, index = 0) {
   const districtName = district || "--";
   const stateName = state || "--";
 
-  const type =
-    raw?.business_type ??
-    raw?.type ??
-    raw?.category ??
-    "Unspecified";
+  const type = raw?.business_type ?? raw?.type ?? raw?.category ?? "Unspecified";
 
   let isActive = true;
   if (typeof raw?.user?.is_active === "boolean") {

@@ -52,6 +52,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+// ── ADDED: Dialog imports for soft-delete and hard-delete confirmation ──
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+
 export default function AdminsManagementPage() {
   const [admins, setAdmins] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -69,6 +79,20 @@ export default function AdminsManagementPage() {
     role: "admin",
     mobile_number: "",
   });
+
+  // ── ADDED: soft-delete confirmation state ──
+  const [softDeleteTarget, setSoftDeleteTarget] = useState<{
+    id: number;
+    label: string;
+  } | null>(null);
+  const [isSoftDeleting, setIsSoftDeleting] = useState(false);
+
+  // ── ADDED: hard-delete confirmation state ──
+  const [hardDeleteTarget, setHardDeleteTarget] = useState<{
+    id: number;
+    label: string;
+  } | null>(null);
+  const [isHardDeleting, setIsHardDeleting] = useState(false);
 
   // Fetch all admins
   const fetchAdmins = async () => {
@@ -94,14 +118,16 @@ export default function AdminsManagementPage() {
           extractedAdmins = res.data.admins;
         } else if (Array.isArray(res.data.data)) {
           extractedAdmins = res.data.data;
-        } 
-        // 4. Fallback search (find any array property)
-        else {
-          const firstArrayKey = Object.keys(res.data).find(key => Array.isArray(res.data[key]));
+        } else {
+          const firstArrayKey = Object.keys(res.data).find((key) =>
+            Array.isArray(res.data[key])
+          );
           if (firstArrayKey) {
             extractedAdmins = res.data[firstArrayKey];
           } else if (res.data.data) {
-             const nestedArrayKey = Object.keys(res.data.data).find(key => Array.isArray(res.data.data[key]));
+            const nestedArrayKey = Object.keys(res.data.data).find((key) =>
+              Array.isArray(res.data.data[key])
+            );
              if (nestedArrayKey) extractedAdmins = res.data.data[nestedArrayKey];
           }
         }
@@ -175,51 +201,78 @@ export default function AdminsManagementPage() {
     setShowModal(true);
   };
 
-  // Handle form input change
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  // Handle soft delete
-  const softDeleteAdmin = async (id: number) => {
-    if (!window.confirm("Are you sure you want to soft delete this admin?")) return;
+  // ── CHANGED: opens soft-delete dialog instead of window.confirm ──
+  const softDeleteAdmin = (admin: any) => {
+    setSoftDeleteTarget({
+      id: admin.id ?? admin.user_id,
+      label: admin.name || admin.email || admin.mobile_number || "this admin",
+    });
+  };
 
+  // ── ADDED: executes soft-delete after user confirms ──
+  const confirmSoftDelete = async () => {
+    if (!softDeleteTarget || isSoftDeleting) return;
+    setIsSoftDeleting(true);
     try {
-      const response = await api.delete(`/admin/auth/${id}/soft`);
+      const response = await api.delete(
+        `/admin/auth/${softDeleteTarget.id}/soft`
+      );
       if (response.status === 200) {
         await fetchAdmins();
         toast.success("Deleted", {
           description: "Admin has been soft deleted successfully.",
         });
+        setSoftDeleteTarget(null);
       }
     } catch (err: any) {
       toast.error("Error", {
-        description: err.response?.data?.message || "Failed to delete admin",
+        description:
+          err.response?.data?.message || "Failed to delete admin",
       });
+    } finally {
+      setIsSoftDeleting(false);
     }
   };
 
-  // Handle hard delete
-  const hardDeleteAdmin = async (id: number) => {
-    if (!window.confirm("WARNING: This will permanently delete the admin. Are you sure?")) return;
+  // ── CHANGED: opens hard-delete dialog instead of window.confirm ──
+  const hardDeleteAdmin = (admin: any) => {
+    setHardDeleteTarget({
+      id: admin.id ?? admin.user_id,
+      label: admin.name || admin.email || admin.mobile_number || "this admin",
+    });
+  };
 
+  // ── ADDED: executes hard-delete after user confirms ──
+  const confirmHardDelete = async () => {
+    if (!hardDeleteTarget || isHardDeleting) return;
+    setIsHardDeleting(true);
     try {
-      await api.delete(`/admin/auth/${id}/hard`);
+      await api.delete(`/admin/auth/${hardDeleteTarget.id}/hard`);
       await fetchAdmins();
       toast.success("Permanently Deleted", {
         description: "Admin has been permanently removed.",
       });
+      setHardDeleteTarget(null);
     } catch (err: any) {
       toast.error("Error", {
-        description: err.response?.data?.message || "Failed to delete admin",
+        description:
+          err.response?.data?.message || "Failed to delete admin",
       });
+    } finally {
+      setIsHardDeleting(false);
     }
   };
 
   // Handle restore
   const restoreAdmin = async (id: number) => {
     try {
-      const response = await api.post(`/admin/${id}/restore`);
+      const response = await api.patch(`/admin/auth/${id}/restore`);
       if (response.status === 200) {
         await fetchAdmins();
         toast.success("Restored", {
@@ -228,7 +281,8 @@ export default function AdminsManagementPage() {
       }
     } catch (err: any) {
       toast.error("Error", {
-        description: err.response?.data?.message || "Failed to restore admin",
+        description:
+          err.response?.data?.message || "Failed to restore admin",
       });
     }
   };
@@ -245,7 +299,10 @@ export default function AdminsManagementPage() {
           description: "Admin added successfully.",
         });
       } else {
-        await api.put(`/admin/${selectedAdmin.user_id || selectedAdmin.id}`, formData);
+        await api.put(
+          `/admin/${selectedAdmin.user_id || selectedAdmin.id}`,
+          formData
+        );
         toast.success("Updated", {
           description: "Admin updated successfully.",
         });
@@ -270,11 +327,18 @@ export default function AdminsManagementPage() {
     }
     const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailPattern.test(formData.email)) {
-      toast.warning("Validation", { description: "Enter a valid email address" });
+      toast.warning("Validation", {
+        description: "Enter a valid email address",
+      });
       return false;
     }
-    if (modalMode === "add" && (!formData.password || formData.password.trim().length < 6)) {
-      toast.warning("Validation", { description: "Password must be at least 6 characters" });
+    if (
+      modalMode === "add" &&
+      (!formData.password || formData.password.trim().length < 6)
+    ) {
+      toast.warning("Validation", {
+        description: "Password must be at least 6 characters",
+      });
       return false;
     }
     return true;
@@ -296,7 +360,9 @@ export default function AdminsManagementPage() {
         <div className="flex flex-1 flex-col p-6 space-y-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-extrabold tracking-tight">Admins Management</h1>
+                <h1 className="text-3xl font-extrabold tracking-tight">
+                  Admins Management
+                </h1>
               <p className="text-muted-foreground mt-1">
                 Manage administrative personnel and their system permissions.
               </p>
@@ -347,43 +413,61 @@ export default function AdminsManagementPage() {
                     <TableHeader className="bg-muted/30">
                       <TableRow className="hover:bg-transparent">
                         <TableHead className="w-[80px] font-bold">SN</TableHead>
-                        <TableHead className="font-bold">Admin Details</TableHead>
-                        <TableHead className="font-bold">Contact Info</TableHead>
+                        <TableHead className="font-bold">Admin Phone</TableHead>
+                        <TableHead className="font-bold">Email</TableHead>
                         <TableHead className="font-bold">Role</TableHead>
-                        <TableHead className="font-bold text-center">Actions</TableHead>
+                          <TableHead className="font-bold text-center">
+                            Actions
+                          </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {filteredAdmins.map((admin, index) => (
-                        <TableRow key={admin.id || admin.user_id} className="group transition-colors hover:bg-muted/10">
+                          <TableRow
+                            key={admin.id || admin.user_id}
+                            className="group transition-colors hover:bg-muted/10"
+                          >
                           <TableCell className="font-medium text-muted-foreground">
-                            {String(index + 1).padStart(2, '0')}
+                              {String(index + 1).padStart(2, "0")}
                           </TableCell>
                           <TableCell>
                             <div className="flex flex-col">
-                              <span className="font-bold text-foreground capitalize">{admin.name || "Unnamed Admin"}</span>
+                                <span className="text-muted-foreground text-xs">
+                                  {admin.mobile_number || "—"}
+                                </span>
                               <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold flex items-center gap-1.5 mt-0.5">
-                                <span className={admin.deletedAt ? "h-1.5 w-1.5 rounded-full bg-red-500" : "h-1.5 w-1.5 rounded-full bg-emerald-500"} />
-                                {admin.deletedAt ? "Inactive" : "Active"}
+                                  <span
+                                    className={
+                                      admin.is_active
+                                        ? "h-1.5 w-1.5 rounded-full bg-emerald-500"
+                                        : "h-1.5 w-1.5 rounded-full bg-red-500"
+                                    }
+                                  />
+                                {admin.is_active ? "Active" : "Inactive"}
                               </span>
                             </div>
                           </TableCell>
                           <TableCell>
                             <div className="flex flex-col text-sm">
-                              <span className="text-foreground">{admin.email}</span>
-                              <span className="text-muted-foreground text-xs">{admin.mobile_number || "—"}</span>
+                                <span className="text-foreground">
+                                  {admin.email}
+                                </span>
                             </div>
                           </TableCell>
                           <TableCell>
                             <Badge 
-                                variant={admin.role === 'superadmin' ? 'default' : 'secondary'}
+                                variant={
+                                  admin.role === "superadmin"
+                                    ? "default"
+                                    : "secondary"
+                                }
                                 className="capitalize font-bold rounded-lg px-2.5 py-0.5"
                             >
                               {admin.role || "Admin"}
                             </Badge>
                           </TableCell>
                           <TableCell className="text-center">
-                            <div className="flex justify-center items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                              <div className="flex justify-center items-center gap-1.5">
                                 <Button 
                                     size="icon" 
                                     variant="ghost" 
@@ -394,35 +478,27 @@ export default function AdminsManagementPage() {
                                     <Edit2 size={16} />
                                 </Button>
                                 
-                                {admin.deletedAt ? (
-                                    currentAdmin?.role === 'superadmin' ? (
+                                {!admin.is_active ? (
                                         <Button 
                                             size="icon" 
                                             variant="ghost" 
                                             className="h-9 w-9 rounded-lg hover:bg-emerald-50 hover:text-emerald-600"
-                                            onClick={() => restoreAdmin(admin.id || admin.user_id)}
+                                    onClick={() =>
+                                      restoreAdmin(admin.id || admin.user_id)
+                                    }
                                             title="Restore Access"
                                         >
                                             <RotateCcw size={16} />
                                         </Button>
-                                    ) : (
-                                        <Button 
-                                            size="icon" 
-                                            variant="ghost" 
-                                            className="h-9 w-9 opacity-30 cursor-not-allowed"
-                                            disabled
-                                            title="Superadmin Access Required"
-                                        >
-                                            <RotateCcw size={16} />
-                                        </Button>
-                                    )
+                                    
                                 ) : (
                                     <>
+                                    {/* UNCHANGED: now calls dialog opener instead of window.confirm */}
                                         <Button 
                                             size="icon" 
                                             variant="ghost" 
                                             className="h-9 w-9 rounded-lg hover:bg-orange-50 hover:text-orange-600"
-                                            onClick={() => softDeleteAdmin(admin.id || admin.user_id)}
+                                      onClick={() => softDeleteAdmin(admin)}
                                             title="Deactivate Account"
                                         >
                                             <Trash2 size={16} />
@@ -431,7 +507,7 @@ export default function AdminsManagementPage() {
                                             size="icon" 
                                             variant="ghost" 
                                             className="h-9 w-9 rounded-lg hover:bg-red-50 hover:text-red-600"
-                                            onClick={() => hardDeleteAdmin(admin.id || admin.user_id)}
+                                      onClick={() => hardDeleteAdmin(admin)}
                                             title="Permanently Expunge"
                                         >
                                             <Zap size={16} />
@@ -471,21 +547,32 @@ export default function AdminsManagementPage() {
                   <div className="flex items-center justify-between mb-8">
                     <div>
                       <h2 className="text-2xl font-bold tracking-tight">
-                        {modalMode === "add" ? "Register New Admin" : "Modify Admin Profile"}
+                          {modalMode === "add"
+                            ? "Register New Admin"
+                            : "Modify Admin Profile"}
                       </h2>
                       <p className="text-muted-foreground text-sm mt-1">
                         Please fill in the identification details below.
                       </p>
                     </div>
                     <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
-                        {modalMode === 'add' ? <UserPlus size={24} /> : <Edit2 size={24} />}
+                        {modalMode === "add" ? (
+                          <UserPlus size={24} />
+                        ) : (
+                          <Edit2 size={24} />
+                        )}
                     </div>
                   </div>
 
                   <form onSubmit={handleSubmit} className="space-y-5">
                     <div className="grid gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="name" className="text-xs font-bold uppercase tracking-widest ml-1 text-muted-foreground">Full Name</Label>
+                          <Label
+                            htmlFor="name"
+                            className="text-xs font-bold uppercase tracking-widest ml-1 text-muted-foreground"
+                          >
+                            Full Name
+                          </Label>
                         <Input
                           id="name"
                           name="name"
@@ -498,7 +585,12 @@ export default function AdminsManagementPage() {
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label htmlFor="email" className="text-xs font-bold uppercase tracking-widest ml-1 text-muted-foreground">Work Email</Label>
+                            <Label
+                              htmlFor="email"
+                              className="text-xs font-bold uppercase tracking-widest ml-1 text-muted-foreground"
+                            >
+                              Work Email
+                            </Label>
                           <Input
                             id="email"
                             name="email"
@@ -511,7 +603,12 @@ export default function AdminsManagementPage() {
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="mobile_number" className="text-xs font-bold uppercase tracking-widest ml-1 text-muted-foreground">Mobile Identification</Label>
+                            <Label
+                              htmlFor="mobile_number"
+                              className="text-xs font-bold uppercase tracking-widest ml-1 text-muted-foreground"
+                            >
+                              Mobile Identification
+                            </Label>
                           <Input
                             id="mobile_number"
                             name="mobile_number"
@@ -523,12 +620,21 @@ export default function AdminsManagementPage() {
                         </div>
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="password" className="text-xs font-bold uppercase tracking-widest ml-1 text-muted-foreground">Security Password</Label>
+                          <Label
+                            htmlFor="password"
+                            className="text-xs font-bold uppercase tracking-widest ml-1 text-muted-foreground"
+                          >
+                            Security Password
+                          </Label>
                         <Input
                           id="password"
                           name="password"
                           type="password"
-                          placeholder={modalMode === "add" ? "Initialize passkey" : "Leave blank to keep unchanged"}
+                            placeholder={
+                              modalMode === "add"
+                                ? "Initialize passkey"
+                                : "Leave blank to keep unchanged"
+                            }
                           value={formData.password}
                           onChange={handleChange}
                           className="h-12 rounded-xl bg-muted/30 border-muted/50 focus-visible:ring-primary/20"
@@ -574,6 +680,91 @@ export default function AdminsManagementPage() {
             </div>
           )}
         </AnimatePresence>
+
+          {/* ── ADDED: Soft-delete (Deactivate) confirmation dialog ── */}
+          <Dialog
+            open={!!softDeleteTarget}
+            onOpenChange={(open) => {
+              if (!open) setSoftDeleteTarget(null);
+            }}
+          >
+            <DialogContent className="sm:max-w-[420px]">
+              <DialogHeader>
+                <DialogTitle className="text-orange-600">
+                  Deactivate Admin
+                </DialogTitle>
+                <DialogDescription>
+                  Are you sure you want to deactivate{" "}
+                  <span className="font-semibold text-foreground">
+                    {softDeleteTarget?.label}
+                  </span>
+                  ? Their account will be suspended and they will lose access to
+                  the system. This can be undone by restoring the account.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setSoftDeleteTarget(null)}
+                  disabled={isSoftDeleting}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  className="bg-orange-600 hover:bg-orange-700 text-white"
+                  onClick={confirmSoftDelete}
+                  disabled={isSoftDeleting}
+                >
+                  {isSoftDeleting ? "Deactivating..." : "Yes, Deactivate"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* ── ADDED: Hard-delete (Permanent) confirmation dialog ── */}
+          <Dialog
+            open={!!hardDeleteTarget}
+            onOpenChange={(open) => {
+              if (!open) setHardDeleteTarget(null);
+            }}
+          >
+            <DialogContent className="sm:max-w-[420px]">
+              <DialogHeader>
+                <DialogTitle className="text-destructive">
+                  Permanently Delete Admin
+                </DialogTitle>
+                <DialogDescription>
+                  <span className="font-semibold text-destructive block mb-1">
+                    ⚠ WARNING — This action cannot be undone.
+                  </span>
+                  Are you sure you want to permanently delete{" "}
+                  <span className="font-semibold text-foreground">
+                    {hardDeleteTarget?.label}
+                  </span>
+                  ? All data associated with this account will be irreversibly
+                  expunged from the system.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setHardDeleteTarget(null)}
+                  disabled={isHardDeleting}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={confirmHardDelete}
+                  disabled={isHardDeleting}
+                >
+                  {isHardDeleting
+                    ? "Deleting..."
+                    : "Yes, Permanently Delete"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
       </SidebarInset>
     </SidebarProvider>
     </ProtectedRoute>

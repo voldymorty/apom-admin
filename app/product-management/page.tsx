@@ -14,6 +14,14 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   Table,
   TableBody,
   TableCell,
@@ -155,10 +163,10 @@ export default function ProductPage() {
             {/* ── Only two tabs now — Inventory & Pricing live inside the Products accordion ── */}
             <Tabs defaultValue="categories" className="w-full">
               <TabsList className="mb-2">
-                <TabsTrigger value="categories" className="gap-2">
+                <TabsTrigger value="categories" className="gap-2 cursor-pointer">
                   <IconCategory className="size-4" /> Categories
                 </TabsTrigger>
-                <TabsTrigger value="products" className="gap-2">
+                <TabsTrigger value="products" className="gap-2 cursor-pointer">
                   <IconPackage className="size-4" /> Products
                 </TabsTrigger>
               </TabsList>
@@ -185,7 +193,8 @@ function CategoriesTab() {
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [filterActive, setFilterActive] = useState<"all" | "active" | "inactive">("all");
-
+const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
+const [deleting, setDeleting] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<any | null>(null);
   const [saving, setSaving] = useState(false);
@@ -273,16 +282,20 @@ function CategoriesTab() {
     }
   };
 
-  const handleDelete = async (cat: any) => {
-    if (!confirm(`Deactivate category "${cat.category_name}"?`)) return;
-    try {
-      await api.delete(`/admin/products/categories/${cat.category_id}`);
-      toast.success("Category deactivated");
-      fetchCategories();
-    } catch (err: any) {
-      toast.error(err.response?.data?.message ?? "Failed to deactivate");
-    }
-  };
+  const handleDelete = async () => {
+  if (!deleteTarget) return;
+  setDeleting(true);
+  try {
+    await api.delete(`/admin/products/categories/${deleteTarget.category_id}`);
+    toast.success("Category deactivated");
+    setDeleteTarget(null);
+    fetchCategories();
+  } catch (err: any) {
+    toast.error(err.response?.data?.message ?? "Failed to deactivate");
+  } finally {
+    setDeleting(false);
+  }
+};
 
   const handleimgerror = (value: any) => {
     const allowedExtensions = ["jpg", "jpeg", "png"];
@@ -374,7 +387,7 @@ function CategoriesTab() {
                         <Button variant="ghost" size="icon" onClick={() => openEdit(cat)}>
                           <IconEdit className="size-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-600" onClick={() => handleDelete(cat)}>
+                        <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-600" onClick={() => setDeleteTarget(cat)}>
                           <IconTrash className="size-4" />
                         </Button>
                       </div>
@@ -429,6 +442,32 @@ function CategoriesTab() {
           </form>
         </SheetContent>
       </Sheet>
+
+      {/* ── Delete Confirmation Dialog ── */}
+<Dialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+  <DialogContent className="sm:max-w-[420px]">
+    <DialogHeader>
+      <DialogTitle className="text-destructive flex items-center gap-2">
+        <IconAlertTriangle className="size-5" />
+        Delete Category
+      </DialogTitle>
+      <DialogDescription>
+        Are you sure you want to delete{" "}
+        <span className="font-semibold text-foreground">{deleteTarget?.category_name}</span>?
+        This action will delete the category permanently.
+      </DialogDescription>
+    </DialogHeader>
+    <DialogFooter>
+      <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={deleting}>
+        Cancel
+      </Button>
+      <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
+        <IconTrash className="mr-2 size-4" />
+        {deleting ? "Deleting..." : "Delete"}
+      </Button>
+    </DialogFooter>
+  </DialogContent>
+</Dialog>
     </>
   );
 }
@@ -443,6 +482,8 @@ function ProductsTab() {
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
+  const [productDeleteTarget, setProductDeleteTarget] = useState<any | null>(null);
+const [productDeleting, setProductDeleting] = useState(false);
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("");
   const [activeFilter, setActiveFilter] = useState<string>("");
@@ -451,6 +492,8 @@ function ProductsTab() {
   const [totalPages, setTotalPages] = useState<number | null>(null);
   const [totalItems, setTotalItems] = useState<number | null>(null);
   const limit = 10;
+  // const units = ['kg', 'piece', 'bunch', 'dozen', 'gram']; // could be fetched from API if dynamic
+  const units = ['kg']; // could be fetched from API if dynamic
 
   // ── Accordion expanded rows: productId → { detail, loading } ──────────────
   const [expandedRows, setExpandedRows] = useState<
@@ -548,7 +591,6 @@ function ProductsTab() {
       setCategories(Array.isArray(data?.categories) ? data.categories : []);
     } catch { /* silent */ }
   }, []);
-
   const fetchLowStock = useCallback(async () => {
     try {
       const res = await api.get("/admin/inventory/low-stock");
@@ -580,7 +622,7 @@ function ProductsTab() {
     }
   }, [page, limit, debouncedSearch, categoryFilter, activeFilter, seasonalFilter]);
 
-  useEffect(() => { fetchCategories(); fetchLowStock(); }, [fetchCategories, fetchLowStock]);
+  useEffect(() => { fetchCategories(); fetchLowStock();  }, [fetchCategories, fetchLowStock,]);
   useEffect(() => { fetchProducts(); }, [fetchProducts]);
 
   // ── Accordion toggle ───────────────────────────────────────────────────────
@@ -652,6 +694,33 @@ function ProductsTab() {
     if (!form.category_id) { toast.error("Category is required"); return; }
     if (!form.product_name.trim()) { toast.error("Product name is required"); return; }
     if (!form.product_code.trim()) { toast.error("Product code is required"); return; }
+    if(!form.inventory) { toast.error("Product Unit is required"); return; };
+
+    {
+      const grades = ["A", "B", "C"];
+
+const hasValidInventory = grades.some((grade) => {
+  const item = form.inventory[grade];
+
+  return (
+    item?.available_quantity_kg &&
+    item?.warehouse_location &&
+    item?.minimum_stock_alert
+  );
+});
+
+if (!hasValidInventory) {
+  toast.error(
+    "At least one complete inventory detail is required."
+  );
+
+  return;
+}
+    }
+    // if(!form.inventory["A"].available_quantity_kg) { toast.error("At least one complete inventory detail is required."); return; };
+    // if(!form.inventory["A"].warehouse_location) { toast.error("At least one complete inventory detail is required."); return; };
+    // if(!form.inventory["A"].minimum_stock_alert) { toast.error("At least one complete inventory detail is required."); return; };
+
     setSaving(true);
     try {
       const fd = new FormData();
@@ -719,16 +788,20 @@ function ProductsTab() {
     setimgerr(false);
   };
 
-  const handleDelete = async (product: any) => {
-    if (!confirm(`Deactivate product "${product.product_name}"?`)) return;
-    try {
-      await api.delete(`/admin/products/${product.product_id}`);
-      toast.success("Product deactivated");
-      fetchProducts();
-    } catch (err: any) {
-      toast.error(err.response?.data?.message ?? "Failed to deactivate");
-    }
-  };
+const handleDelete = async () => {
+  if (!productDeleteTarget) return;
+  setProductDeleting(true);
+  try {
+    await api.delete(`/admin/products/${productDeleteTarget.product_id}`);
+    toast.success("Product deactivated");
+    setProductDeleteTarget(null);
+    fetchProducts();
+  } catch (err: any) {
+    toast.error(err.response?.data?.message ?? "Failed to deactivate");
+  } finally {
+    setProductDeleting(false);
+  }
+};
 
   // ── Stock Adjustment handlers (lifted from InventoryTab) ───────────────────
   const openAdjust = async (productId: number, defaultGrade?: Grade) => {
@@ -1102,7 +1175,7 @@ function ProductsTab() {
                             <Button variant="ghost" size="icon" title="Edit" onClick={() => openEdit(p)}>
                               <IconEdit className="size-4" />
                             </Button>
-                            <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-600" title="Deactivate" onClick={() => handleDelete(p)}>
+                            <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-600" title="Deactivate" onClick={() => setProductDeleteTarget(p)}>
                               <IconTrash className="size-4" />
                             </Button>
                           </div>
@@ -1171,7 +1244,7 @@ function ProductsTab() {
                 <Input id="p_code" value={form.product_code} onChange={(e) => setForm((f) => ({ ...f, product_code: e.target.value.toUpperCase() }))} placeholder="e.g. VEG001" required />
               </FormField>
               <FormField label="Category *" id="p_cat">
-                <Select value={form.category_id || "none"} onValueChange={(v) => setForm((f) => ({ ...f, category_id: v === "none" ? "" : v }))}>
+                <Select value={form.category_id || "none"} required onValueChange={(v) => setForm((f) => ({ ...f, category_id: v === "none" ? "" : v }))}>
                   <SelectTrigger id="p_cat" className="bg-white dark:bg-card"><SelectValue placeholder="Select category" /></SelectTrigger>
                   <SelectContent>
                     {categories.map((c) => <SelectItem key={c.category_id} value={String(c.category_id)}>{c.category_name}</SelectItem>)}
@@ -1179,7 +1252,14 @@ function ProductsTab() {
                 </Select>
               </FormField>
               <FormField label="Unit" id="p_unit">
-                <Input id="p_unit" value={form.unit} onChange={(e) => setForm((f) => ({ ...f, unit: e.target.value }))} placeholder="kg" />
+                <Select value={form.unit || "none"} required onValueChange={(v) => setForm((f) => ({ ...f, unit: v === "none" ? "" : v }))}>
+                  <SelectTrigger id="p_unit" className="bg-white dark:bg-card"><SelectValue placeholder="Select unit" /></SelectTrigger>
+                  <SelectContent>
+                    {units.map((u,index) => <SelectItem key={index} value={String(u)}>{u}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                {/* <Input id="p_unit" value={form.unit} onChange={(e) => setForm((f) => ({ ...f, unit: e.target.value }))} placeholder="kg" />
+                 */}
               </FormField>
               <FormField label="Description" id="p_desc" className="col-span-2">
                 <Textarea id="p_desc" value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} placeholder="Optional description" rows={2} />
@@ -1225,7 +1305,7 @@ function ProductsTab() {
 
             {!editTarget && (
               <>
-                <SectionHeading>Initial Inventory (Optional)</SectionHeading>
+                <SectionHeading>Initial Inventory (At least one Required)</SectionHeading>
                 <div className="space-y-4">
                   {GRADES.map((g) => (
                     <div key={g} className="rounded-xl border bg-muted/20 p-4 space-y-3">
@@ -1471,6 +1551,32 @@ function ProductsTab() {
           </form>
         </SheetContent>
       </Sheet>
+
+      {/* ── Delete Confirmation Dialog ── */}
+<Dialog open={!!productDeleteTarget} onOpenChange={(open) => { if (!open) setProductDeleteTarget(null); }}>
+  <DialogContent className="sm:max-w-[420px]">
+    <DialogHeader>
+      <DialogTitle className="text-destructive flex items-center gap-2">
+        <IconAlertTriangle className="size-5" />
+        Delete Product
+      </DialogTitle>
+      <DialogDescription>
+        Are you sure you want to delete{" "}
+        <span className="font-semibold text-foreground">{productDeleteTarget?.product_name}</span>?
+        This action will delete the product permanently.
+      </DialogDescription>
+    </DialogHeader>
+    <DialogFooter>
+      <Button variant="outline" onClick={() => setProductDeleteTarget(null)} disabled={productDeleting}>
+        Cancel
+      </Button>
+      <Button variant="destructive" onClick={handleDelete} disabled={productDeleting}>
+        <IconTrash className="mr-2 size-4" />
+        {productDeleting ? "Deleting..." : "Delete Product"}
+      </Button>
+    </DialogFooter>
+  </DialogContent>
+</Dialog>
     </>
   );
 }
@@ -1498,7 +1604,7 @@ function ProductAccordionContent({
   onDeletePricing,
 }: ProductAccordionContentProps) {
   return (
-    <div className="px-10 py-5 grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div className="px-4 py-5 grid grid-cols-2 gap-6">
       {/* ── LEFT: Inventory by Grade ── */}
       <div>
         <div className="flex items-center justify-between mb-3">

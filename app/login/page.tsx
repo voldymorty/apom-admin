@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { motion, AnimatePresence } from "motion/react";
 import PublicRoute from "../routes/PublicRoute";
+import logo from "../../public/APOM logo.png";
 import { 
   Truck, 
   Package, 
@@ -166,10 +167,11 @@ export default function LoginPage() {
             transition={{ duration: 0.6 }}
             className="flex items-center gap-3.5"
           >
-            <div className="flex h-12 w-12 items-center justify-center rounded-[1.25rem] bg-primary shadow-2xl shadow-primary/40 ring-4 ring-primary/10">
-              <Package className="text-white fill-white/10" size={26} />
-            </div>
-            <span className="text-2xl font-bold tracking-tight text-white/95">APOM Admin</span>
+            {/* <div className="flex h-12 w-12 items-center justify-center rounded-[1.25rem] bg-primary shadow-2xl shadow-primary/40 ring-4 ring-primary/10">
+            
+            </div> */}
+            <img src={logo.src} className="h-15" alt="" />
+            <span className="text-3xl font-bold tracking-tight text-white/95">Apom Logistics</span>
           </motion.div>
 
           <div className="max-w-xl">
@@ -180,16 +182,16 @@ export default function LoginPage() {
               className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-semibold mb-6 uppercase tracking-wider"
             >
               <div className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
-              Management System v2.0
+              Apom Operations Dashboard
             </motion.div>
             <motion.h1
               initial={{ opacity: 0, x: -50 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.8, delay: 0.2 }}
-              className="mb-8 text-7xl font-extrabold leading-[1.1] tracking-tighter"
+              className="mb-8 text-6xl font-extrabold leading-[1.1] tracking-tighter"
             >
-              Efficiency in every{" "}
-              <span className="text-primary italic font-serif">delivery.</span>
+              Manage Farmers to Vendors{" "}
+              <span className="text-primary italic font-serif">Efficiently..</span>
             </motion.h1>
             <motion.p
               initial={{ opacity: 0, x: -50 }}
@@ -197,8 +199,8 @@ export default function LoginPage() {
               transition={{ duration: 0.8, delay: 0.4 }}
               className="text-xl text-zinc-400 leading-relaxed font-medium"
             >
-              Manage logistics, track performance, and optimize your operations 
-              with the most powerful admin dashboard for the Apom ecosystem.
+            The APOM Operations Dashboard streamlines procurement, logistics, and vendor operations.
+Manage payments, deliveries, and daily workflows with real-time visibility and control.
             </motion.p>
           </div>
 
@@ -309,12 +311,12 @@ export default function LoginPage() {
                   <Label htmlFor="password" className="text-sm font-semibold tracking-wide">
                     Password
                   </Label>
-                  <button
+                  {/* <button
                     type="button"
                     className="text-xs font-bold text-primary hover:text-primary/80 transition-colors uppercase tracking-widest"
                   >
                     Forgot Password?
-                  </button>
+                  </button> */}
                 </div>
                 <div className="relative group">
                   <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground transition-all duration-300 group-focus-within:text-primary group-focus-within:scale-110">
@@ -355,7 +357,7 @@ export default function LoginPage() {
                     Verifying Identity...
                   </span>
                 ) : (
-                  <span className="flex items-center justify-center gap-2 relative z-10">
+                  <span className="flex items-center justify-center gap-2 relative z-10 cursor-pointer">
                     Sign In to Dashboard 
                     <ChevronRight size={20} className="group-hover/btn:translate-x-1 transition-transform" />
                   </span>
@@ -366,7 +368,7 @@ export default function LoginPage() {
           </form>
 
           {/* Footer */}
-          <motion.div
+          {/* <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.4 }}
@@ -378,7 +380,7 @@ export default function LoginPage() {
                 Contact Technical Support
               </button>
             </p>
-          </motion.div>
+          </motion.div> */}
         </motion.div>
 
         {/* System Status Indicator - Bottom right */}

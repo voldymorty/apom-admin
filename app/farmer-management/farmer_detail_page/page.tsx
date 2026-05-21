@@ -23,6 +23,14 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   IconArrowLeft,
   IconUserCircle,
   IconMapPin,
@@ -34,6 +42,8 @@ import {
   IconSearch,
   IconX,
   IconChevronDown,
+  IconAlertCircle,
+  IconCheck,
 } from "@tabler/icons-react";
 import { toast } from "sonner";
 import ProtectedRoute from "../../routes/ProtectedRoute";
@@ -63,6 +73,10 @@ interface EditForm {
 interface LocationOption {
   id: string;
   name: string;
+}
+
+interface ConfirmationState {
+  type: "activate" | "deactivate" | "delete" | null;
 }
 
 // ─── LocationSearchField component ───────────────────────────────────────────
@@ -262,11 +276,11 @@ export default function FarmerDetailPage() {
   });
   const [editLoading, setEditLoading] = useState(false);
 
-  // Delete
-  const [deleteLoading, setDeleteLoading] = useState(false);
-
-  // Activate/Deactivate
-  const [statusLoading, setStatusLoading] = useState(false);
+  // Confirmation dialog
+  const [confirmation, setConfirmation] = useState<ConfirmationState>({
+    type: null,
+  });
+  const [isProcessing, setIsProcessing] = useState(false);
 
   // Crops
   const [crops, setCrops] = useState<any[]>([]);
@@ -525,48 +539,42 @@ export default function FarmerDetailPage() {
     }
   };
 
-  const handleDelete = async () => {
-    const confirmed = window.confirm(
-      `Are you sure you want to permanently delete ${normalized.name}? This action cannot be undone.`
-    );
-    if (!confirmed) return;
-    setDeleteLoading(true);
-    try {
-      await api.delete(`/admin/farmers/${encodeURIComponent(farmerId)}`);
-      toast.success("Farmer deleted successfully");
-      router.push("/farmer-management");
-    } catch (err: any) {
-      toast.error("Error", {
-        description: err.response?.data?.message || "Failed to delete farmer",
-      });
-      setDeleteLoading(false);
-    }
-  };
+  // Handle confirmed action
+  const handleConfirm = async () => {
+    if (!confirmation.type) return;
 
-  const handleToggleStatus = async () => {
-    const nextActive = !normalized.isActive;
-    const actionLabel = nextActive ? "activate" : "deactivate";
-    const confirmed = window.confirm(
-      `Are you sure you want to ${actionLabel} ${normalized.name}?`
-    );
-    if (!confirmed) return;
-    setStatusLoading(true);
+    setIsProcessing(true);
+    const type = confirmation.type;
+
     try {
-      const endpoint = nextActive
+      if (type === "activate" || type === "deactivate") {
+        const endpoint =
+          type === "activate"
         ? `/admin/farmers/${encodeURIComponent(farmerId)}/activate`
         : `/admin/farmers/${encodeURIComponent(farmerId)}/deactivate`;
+        
       await api.patch(endpoint);
-      toast.success(nextActive ? "Farmer Activated" : "Farmer Deactivated", {
-        description: `${normalized.name} has been ${nextActive ? "activated" : "deactivated"}.`,
-      });
+        toast.success(
+          type === "activate" ? "Farmer Activated" : "Farmer Deactivated",
+          {
+            description: `${normalized.name} has been ${type === "activate" ? "activated" : "deactivated"}.`,
+          }
+        );
+      } else if (type === "delete") {
+        await api.delete(`/admin/farmers/${encodeURIComponent(farmerId)}`);
+        toast.success("Farmer Deleted", {
+          description: `${normalized.name} has been permanently deleted.`,
+        });
+        router.push("/farmer-management");
+      }
+
+      setConfirmation({ type: null });
       await fetchFarmer();
     } catch (err: any) {
-      toast.error("Error", {
-        description:
-          err.response?.data?.message || "Failed to update farmer status",
-      });
+      const message = err.response?.data?.message || `Failed to ${type} farmer`;
+      toast.error("Error", { description: message });
     } finally {
-      setStatusLoading(false);
+      setIsProcessing(false);
     }
   };
 
@@ -662,11 +670,15 @@ export default function FarmerDetailPage() {
                       ? "border-amber-200 text-amber-700 hover:bg-red-800"
                       : "border-emerald-200 text-emerald-700 hover:bg-emerald-800"
                   }
-                  onClick={handleToggleStatus}
-                  disabled={statusLoading || loading || !farmer}
+                  onClick={() =>
+                    setConfirmation({
+                      type: normalized.isActive ? "deactivate" : "activate",
+                    })
+                  }
+                  disabled={isProcessing || loading || !farmer}
                 >
                   <IconPower className="mr-1.5 size-4" />
-                  {statusLoading
+                  {isProcessing
                     ? "Updating..."
                     : normalized.isActive
                     ? "Deactivate"
@@ -676,11 +688,11 @@ export default function FarmerDetailPage() {
                   variant="outline"
                   size="sm"
                   className="border-red-200 text-red-600 hover:bg-red-600"
-                  onClick={handleDelete}
-                  disabled={deleteLoading || loading || !farmer}
+                  onClick={() => setConfirmation({ type: "delete" })}
+                  disabled={isProcessing || loading || !farmer}
                 >
                   <IconTrash className="mr-1.5 size-4" />
-                  {deleteLoading ? "Deleting..." : "Delete"}
+                  {isProcessing ? "Deleting..." : "Delete"}
                 </Button>
                 <Button asChild variant="outline" size="sm">
                   <Link href="/farmer-management" className="gap-2">
@@ -1631,6 +1643,100 @@ export default function FarmerDetailPage() {
           </form>
         </SheetContent>
       </Sheet>
+
+      {/* ─── Confirmation Dialog ─── */}
+      <Dialog
+        open={confirmation.type !== null}
+        onOpenChange={(open) => {
+          if (!open) setConfirmation({ type: null });
+        }}
+      >
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <div className="flex items-center gap-3">
+              {confirmation.type === "deactivate" || confirmation.type === "delete" ? (
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30">
+                  <IconAlertCircle className="size-5 text-red-600 dark:text-red-400" />
+                </div>
+              ) : (
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
+                  <IconPower className="size-5 text-green-600 dark:text-green-400" />
+                </div>
+              )}
+              <DialogTitle className={confirmation.type === "deactivate" || confirmation.type === "delete" ? "text-red-600" : "text-green-600"}>
+                {confirmation.type === "activate"
+                  ? "Activate Farmer"
+                  : confirmation.type === "deactivate"
+                  ? "Deactivate Farmer"
+                  : "Delete Farmer"}
+              </DialogTitle>
+            </div>
+            <DialogDescription className="mt-2">
+              {confirmation.type === "activate" ? (
+                <>
+                  Are you sure you want to <span className="font-semibold">activate</span> this farmer?
+                  <br />
+                  <span className="font-semibold text-foreground">
+                    {normalized.name}
+                  </span>
+                  <br />
+                  They will be able to access their account and perform transactions.
+                </>
+              ) : confirmation.type === "deactivate" ? (
+                <>
+                  Are you sure you want to <span className="font-semibold">deactivate</span> this farmer?
+                  <br />
+                  <span className="font-semibold text-foreground">
+                    {normalized.name}
+                  </span>
+                  <br />
+                  They will not be able to access their account.
+                </>
+              ) : (
+                <>
+                  Are you sure you want to permanently delete this farmer?
+                  <br />
+                  <span className="font-semibold text-foreground">
+                    {normalized.name}
+                  </span>
+                  <br />
+                  <span className="text-red-600 dark:text-red-400">
+                    This action cannot be undone.
+                  </span>
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setConfirmation({ type: null })}
+              disabled={isProcessing}
+            >
+              <IconX className="mr-2 size-4" />
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirm}
+              disabled={isProcessing}
+              className={
+                confirmation.type === "deactivate" || confirmation.type === "delete"
+                  ? "bg-red-600 hover:bg-red-700 text-white"
+                  : "bg-green-600 hover:bg-green-700 text-white"
+              }
+            >
+              <IconCheck className="mr-2 size-4" />
+              {isProcessing
+                ? "Processing..."
+                : confirmation.type === "activate"
+                ? "Activate"
+                : confirmation.type === "deactivate"
+                ? "Deactivate"
+                : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </ProtectedRoute>
   );
 }

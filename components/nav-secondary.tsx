@@ -16,6 +16,15 @@ import { useContext } from "react";
 
 import { useAuth } from "@/components/providers/auth-provider";
 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 export function NavSecondary({
   items,
@@ -29,37 +38,80 @@ export function NavSecondary({
 } & React.ComponentPropsWithoutRef<typeof SidebarGroup>) {
   const pathname = usePathname();
   const router = useRouter();
-  const { logout } = useAuth();;
+  const { logout } = useAuth();
 
-   function LogOut(value:any){
-   if(value === "Log out"){
+  // ── NEW: logout dialog state ──
+  const [showLogoutDialog, setShowLogoutDialog] = React.useState(false);
+
+  function handleItemClick(title: string) {
+    if (title === "Log out") {
+      setShowLogoutDialog(true);
+    }
+  }
+
+  function handleConfirmLogout() {
+    setShowLogoutDialog(false);
   logout();
    }
-  };
 
   return (
+    <>
     <SidebarGroup {...props}>
       <SidebarGroupContent>
         <SidebarMenu>
           {items.map((item) => (
-            <SidebarMenuItem  key={item.title}>
-              <SidebarMenuButton className={item.title == "Log out"? "duration-150 hover:text-red-500":""} asChild isActive={pathname === item.url}>
-                {item.url === "#" ? (
-                  <a href={item.title == "Log out"?"":item.url}>
-                    <item.icon />
-                    <span onClick={()=>{LogOut(item.title)}} >{item.title}</span>
-                  </a>
-                ) : (
-                  <Link href={item.title == "Log out"?"":item.url}>
+              <SidebarMenuItem key={item.title}>
+                <SidebarMenuButton
+                  onClick={() => handleItemClick(item.title)}
+                  className={
+                    item.title === "Log out"
+                      ? "duration-150 hover:text-red-500"
+                      : ""
+                  }
+                  asChild
+                  isActive={pathname === item.url}
+                >
+               
+                    <Link href={item.title === "Log out" ? "" : item.url}>
                     <item.icon />
                     <span>{item.title}</span>
                   </Link>
-                )}
+                
               </SidebarMenuButton>
             </SidebarMenuItem>
           ))}
         </SidebarMenu>
       </SidebarGroupContent>
     </SidebarGroup>
+
+      {/* ── Logout Confirmation Dialog ── */}
+      <Dialog
+        open={showLogoutDialog}
+        onOpenChange={(open) => {
+          if (!open) setShowLogoutDialog(false);
+        }}
+      >
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle className="text-destructive">Confirm log out</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to log out? You'll need to sign in again to
+              access your account.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowLogoutDialog(false)}
+            >
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleConfirmLogout}>
+              Log out
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

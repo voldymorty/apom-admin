@@ -23,6 +23,9 @@ import {
   IconFilter,
   IconEye,
   IconPower,
+  IconAlertCircle,
+  IconCheck,
+  IconX,
 } from "@tabler/icons-react";
 import { Card } from "@/components/ui/card";
 import Link from "next/link";
@@ -34,9 +37,24 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import ProtectedRoute from "../routes/ProtectedRoute";
 import api from "@/app/services/api";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface ConfirmationState {
+  type: "activate" | "deactivate" | "delete" | null;
+  farmer: { id: string; name: string; isActive: boolean } | null;
+}
 
 export default function FarmerManagement() {
   const [farmers, setFarmers] = useState<any[]>([]);
@@ -52,6 +70,13 @@ export default function FarmerManagement() {
   const [statusUpdatingId, setStatusUpdatingId] = useState<string | null>(null);
   const [sortBy] = useState("created_at");
   const [order] = useState<"asc" | "desc">("desc");
+
+  // Confirmation dialog state
+  const [confirmation, setConfirmation] = useState<ConfirmationState>({
+    type: null,
+    farmer: null,
+  });
+  const [isProcessing, setIsProcessing] = useState(false);
 
   // Debounce search input
   useEffect(() => {
@@ -128,34 +153,54 @@ export default function FarmerManagement() {
     setPage(1);
   };
 
-  const handleToggleStatus = async (farmer: {
+  // Open confirmation dialog
+  const handleToggleStatusClick = (farmer: {
     id: string;
     name: string;
     isActive: boolean;
   }) => {
-    const nextActive = !farmer.isActive;
-    const actionLabel = nextActive ? "activate" : "deactivate";
-    const confirmed = window.confirm(
-      `Are you sure you want to ${actionLabel} ${farmer.name}?`
-    );
-    if (!confirmed) return;
+    setConfirmation({
+      type: farmer.isActive ? "deactivate" : "activate",
+      farmer,
+    });
+  };
 
-    setStatusUpdatingId(farmer.id);
+  // Handle confirmed action
+  const handleConfirm = async () => {
+    if (!confirmation.farmer || !confirmation.type) return;
+
+    setIsProcessing(true);
+    const farmer = confirmation.farmer;
+    const type = confirmation.type;
+
     try {
-      const endpoint = nextActive
+      if (type === "activate" || type === "deactivate") {
+        const endpoint =
+          type === "activate"
         ? `/admin/farmers/${encodeURIComponent(farmer.id)}/activate`
         : `/admin/farmers/${encodeURIComponent(farmer.id)}/deactivate`;
+        
       await api.patch(endpoint);
-      toast.success(nextActive ? "Farmer Activated" : "Farmer Deactivated", {
-        description: `${farmer.name} has been ${nextActive ? "activated" : "deactivated"}.`,
-      });
+        toast.success(
+          type === "activate" ? "Farmer Activated" : "Farmer Deactivated",
+          {
+            description: `${farmer.name} has been ${type === "activate" ? "activated" : "deactivated"}.`,
+          }
+        );
+      } else if (type === "delete") {
+        await api.delete(`/admin/farmers/${encodeURIComponent(farmer.id)}`);
+        toast.success("Farmer Deleted", {
+          description: `${farmer.name} has been permanently deleted.`,
+        });
+      }
+
+      setConfirmation({ type: null, farmer: null });
       await fetchFarmers();
     } catch (err: any) {
-      const message =
-        err.response?.data?.message || "Failed to update farmer status";
+      const message = err.response?.data?.message || `Failed to ${type} farmer`;
       toast.error("Error", { description: message });
     } finally {
-      setStatusUpdatingId(null);
+      setIsProcessing(false);
     }
   };
 
@@ -388,8 +433,8 @@ export default function FarmerManagement() {
                                       ? "border-amber-200 text-amber-700 hover:bg-red-800"
                                       : "border-emerald-200 text-emerald-700 hover:bg-emerald-800"
                                   }
-                                  onClick={() => handleToggleStatus(farmer)}
-                                  disabled={statusUpdatingId === farmer.id}
+                                  onClick={() => handleToggleStatusClick(farmer)}
+                                  disabled={isProcessing}
                                   title={
                                     farmer.isActive
                                       ? "Deactivate farmer"
@@ -397,7 +442,7 @@ export default function FarmerManagement() {
                                   }
                                 >
                                   <IconPower className="mr-1.5 size-3.5" />
-                                  {statusUpdatingId === farmer.id
+                                  {isProcessing && confirmation.farmer?.id === farmer.id
                                     ? "Updating..."
                                     : farmer.isActive
                                     ? "Deactivate"
@@ -457,6 +502,101 @@ export default function FarmerManagement() {
           </div>
         </SidebarInset>
       </SidebarProvider>
+
+      {/* ─── Confirmation Dialog ─── */}
+      <Dialog
+        open={confirmation.type !== null}
+        onOpenChange={(open) => {
+          if (!open) setConfirmation({ type: null, farmer: null });
+        }}
+      >
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <div className="flex items-center gap-3">
+              {/* {confirmation.type === "deactivate" ? (
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30">
+                  <IconAlertCircle className="size-5 text-red-600 dark:text-red-400" />
+                </div>
+              ) : (
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30">
+                  <IconPower className="size-5 text-blue-600 dark:text-blue-400" />
+                </div>
+              )} */}
+              <DialogTitle className={confirmation.type === "deactivate" ? "text-red-600" : "text-green-600"}>
+                {confirmation.type === "activate"
+                  ? "Activate Farmer"
+                  : confirmation.type === "deactivate"
+                  ? "Deactivate Farmer"
+                  : "Delete Farmer"}
+              </DialogTitle>
+            </div>
+            <DialogDescription className="mt-2">
+              {confirmation.type === "activate" ? (
+                <>
+                  Are you sure you want to <span className="font-semibold">activate</span> this farmer?
+                  <br />
+                  <span className="font-semibold text-foreground">
+                    {confirmation.farmer?.name}
+                  </span>
+                  <br />
+                  <span>They will be able to access their account and perform transactions.</span>
+                </>
+              ) : confirmation.type === "deactivate" ? (
+                <>
+                  Are you sure you want to <span className="font-semibold">deactivate</span> this farmer?
+                  <br />
+                  <span className="font-semibold text-foreground">
+                    {confirmation.farmer?.name }
+                  </span>
+                  <br/>
+                  <span>They will not be able to access their account.</span>
+                  
+                </>
+              ) : (
+                <>
+                  Are you sure you want to permanently delete this farmer?
+                  <br />
+                  <span className="font-semibold text-foreground">
+                    {confirmation.farmer?.name}
+                  </span>
+                  <br />
+                  <span className="text-red-600 dark:text-red-400">
+                    This action cannot be undone.
+                  </span>
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setConfirmation({ type: null, farmer: null })}
+              disabled={isProcessing}
+            >
+              <IconX className="mr-2 size-4" />
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirm}
+              disabled={isProcessing}
+              className={
+                confirmation.type === "deactivate"
+                  ? "bg-red-600 hover:bg-red-700 text-white"
+                  : "bg-green-600 hover:bg-green-700 text-white"
+              }
+            >
+              <IconCheck className="mr-2 size-4" />
+              {isProcessing
+                ? "Processing..."
+                : confirmation.type === "activate"
+                ? "Activate"
+                : confirmation.type === "deactivate"
+                ? "Deactivate"
+                : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </ProtectedRoute>
   );
 }

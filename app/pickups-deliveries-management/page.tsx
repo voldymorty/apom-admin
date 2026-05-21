@@ -203,16 +203,21 @@ interface CreateTaskForm {
   pickup_address: string;
   pickup_contact_name: string;
   pickup_contact_number: string;
-  order_id: string;
-  vendor_id: string;
   delivery_address: string;
   delivery_contact_name: string;
   delivery_contact_number: string;
-  delivery_person_id: string;
   scheduled_date: string;
   scheduled_time_slot: string;
   expected_quantity_kg: string;
   delivery_notes: string;
+}
+
+// ─── SearchSelect Types ───────────────────────────────────────────────────────
+
+interface SearchSelectOption {
+  id: number;
+  label: string;
+  sublabel?: string;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -261,12 +266,9 @@ const DEFAULT_FORM: CreateTaskForm = {
   pickup_address: "",
   pickup_contact_name: "",
   pickup_contact_number: "",
-  order_id: "",
-  vendor_id: "",
   delivery_address: "",
   delivery_contact_name: "",
   delivery_contact_number: "",
-  delivery_person_id: "",
   scheduled_date: "",
   scheduled_time_slot: "",
   expected_quantity_kg: "",
@@ -466,6 +468,152 @@ function InfoRow({
   );
 }
 
+// ─── SearchSelect Component ───────────────────────────────────────────────────
+
+function SearchSelect({
+  id,
+  placeholder,
+  value,
+  onChange,
+  fetchOptions,
+  disabled,
+}: {
+  id: string;
+  placeholder: string;
+  value: SearchSelectOption | null;
+  onChange: (opt: SearchSelectOption | null) => void;
+  fetchOptions: (query: string) => Promise<SearchSelectOption[]>;
+  disabled?: boolean;
+}) {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<SearchSelectOption[]>([]);
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  const search = useCallback(
+    async (q: string) => {
+      setLoading(true);
+      setOpen(true);
+      try {
+        const opts = await fetchOptions(q);
+        setResults(opts);
+      } catch {
+        setResults([]);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [fetchOptions]
+  );
+
+  const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const q = e.target.value;
+    setQuery(q);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => search(q), 250);
+  };
+
+  const handleFocus = () => {
+    if (!value) search(query);
+  };
+
+  const select = (opt: SearchSelectOption) => {
+    onChange(opt);
+    setQuery("");
+    setOpen(false);
+    setResults([]);
+  };
+
+  const clear = () => {
+    onChange(null);
+    setQuery("");
+    setResults([]);
+    setOpen(false);
+  };
+
+  return (
+    <div ref={wrapRef} className="relative">
+      {value ? (
+        <div className="flex items-center gap-2 h-9 px-3 rounded-md border border-border bg-muted/40 text-sm">
+          <span className="flex-1 font-medium truncate">{value.label}</span>
+          {value.sublabel && (
+            <span className="text-xs text-muted-foreground shrink-0 truncate max-w-[120px]">
+              {value.sublabel}
+            </span>
+          )}
+          {!disabled && (
+            <button
+              type="button"
+              onClick={clear}
+              className="ml-1 shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+              aria-label="Clear selection"
+            >
+              <IconX className="size-3.5" />
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="relative">
+          <IconSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
+          <Input
+            id={id}
+            className="pl-8"
+            placeholder={placeholder}
+            value={query}
+            onChange={handleInput}
+            onFocus={handleFocus}
+            disabled={disabled}
+            autoComplete="off"
+          />
+        </div>
+      )}
+
+      {open && !value && (
+        <div className="absolute z-50 top-full mt-1 left-0 right-0 rounded-md border border-border bg-popover shadow-md overflow-hidden max-h-52 overflow-y-auto">
+          {loading ? (
+            <div className="flex items-center justify-center gap-2 py-3 text-xs text-muted-foreground">
+              <Spinner size="sm" /> Searching…
+            </div>
+          ) : results.length === 0 ? (
+            <div className="py-3 text-center text-xs text-muted-foreground">
+              No results found
+            </div>
+          ) : (
+            results.map((opt) => (
+              <button
+                key={opt.id}
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => select(opt)}
+                className="w-full text-left px-3 py-2 text-sm hover:bg-muted/60 transition-colors flex flex-col gap-0.5 border-b border-border/40 last:border-0"
+              >
+                <span className="font-medium text-foreground">{opt.label}</span>
+                {opt.sublabel && (
+                  <span className="text-xs text-muted-foreground">
+                    {opt.sublabel}
+                  </span>
+                )}
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Create Task Dialog ───────────────────────────────────────────────────────
 
 function CreateTaskDialog({
@@ -485,19 +633,78 @@ function CreateTaskDialog({
   });
   const [loading, setLoading] = useState(false);
 
+  // SearchSelect state
+  const [selectedDeliveryPerson, setSelectedDeliveryPerson] =
+    useState<SearchSelectOption | null>(null);
+  const [selectedVendor, setSelectedVendor] =
+    useState<SearchSelectOption | null>(null);
+  const [selectedOrder, setSelectedOrder] =
+    useState<SearchSelectOption | null>(null);
+
   useEffect(() => {
-    if (open) setForm({ ...DEFAULT_FORM, delivery_type: defaultType });
+    if (open) {
+      setForm({ ...DEFAULT_FORM, delivery_type: defaultType });
+      setSelectedDeliveryPerson(null);
+      setSelectedVendor(null);
+      setSelectedOrder(null);
+    }
   }, [open, defaultType]);
 
   const set = (k: keyof CreateTaskForm, v: string) =>
     setForm((prev) => ({ ...prev, [k]: v }));
+
+  // ── Fetch functions ──────────────────────────────────────────────────────────
+
+  const fetchDeliveryPersons = useCallback(async (query: string) => {
+    const res = await api.get(
+      `/admin/delivery-personnel?search=${encodeURIComponent(query)}&limit=20`
+    );
+    const raw = res.data?.data;
+    const list: Record<string, unknown>[] =
+      raw?.personnel ?? raw?.delivery_personnel ?? (Array.isArray(raw) ? raw : []);
+    return list.map((p) => ({
+      id: p.delivery_person_id as number,
+      label: p.full_name as string,
+      sublabel: `${String(p.vehicle_type ?? "").toUpperCase()} · ${p.vehicle_number ?? ""}`,
+    }));
+  }, []);
+
+  const fetchVendors = useCallback(async (query: string) => {
+    const res = await api.get(
+      `/admin/vendors?search=${encodeURIComponent(query)}&limit=20`
+    );
+    const raw = res.data?.data;
+    const list: Record<string, unknown>[] =
+      raw?.vendors ?? (Array.isArray(raw) ? raw : []);
+    return list.map((v) => ({
+      id: v.vendor_id as number,
+      label: v.shop_name as string,
+      sublabel: v.owner_name as string,
+    }));
+  }, []);
+
+  const fetchOrders = useCallback(async (query: string) => {
+    const res = await api.get(
+      `/admin/orders?search=${encodeURIComponent(query)}&limit=20`
+    );
+    const raw = res.data?.data;
+    const list: Record<string, unknown>[] =
+      raw?.orders ?? (Array.isArray(raw) ? raw : []);
+    return list.map((o) => ({
+      id: o.order_id as number,
+      label: o.order_number as string,
+      sublabel: `₹${o.final_amount ?? "—"} · ${o.order_status ?? ""}`,
+    }));
+  }, []);
+
+  // ── Submit ───────────────────────────────────────────────────────────────────
 
   const handleSubmit = async () => {
     if (
       !form.pickup_address ||
       !form.pickup_contact_name ||
       !form.pickup_contact_number ||
-      !form.delivery_person_id ||
+      !selectedDeliveryPerson?.id ||
       !form.scheduled_date ||
       !form.scheduled_time_slot
     ) {
@@ -514,7 +721,7 @@ function CreateTaskDialog({
         delivery_address: form.delivery_address,
         delivery_contact_name: form.delivery_contact_name,
         delivery_contact_number: form.delivery_contact_number,
-        delivery_person_id: Number(form.delivery_person_id),
+        delivery_person_id: selectedDeliveryPerson.id,
         scheduled_date: form.scheduled_date,
         scheduled_time_slot: form.scheduled_time_slot,
         expected_quantity_kg: form.expected_quantity_kg
@@ -522,13 +729,15 @@ function CreateTaskDialog({
           : undefined,
         delivery_notes: form.delivery_notes || undefined,
       };
+
       if (form.delivery_type === "pickup") {
         if (form.farmer_id) body.farmer_id = Number(form.farmer_id);
         if (form.crop_id) body.crop_id = Number(form.crop_id);
       } else {
-        if (form.order_id) body.order_id = Number(form.order_id);
-        if (form.vendor_id) body.vendor_id = Number(form.vendor_id);
+        if (selectedOrder?.id) body.order_id = selectedOrder.id;
+        if (selectedVendor?.id) body.vendor_id = selectedVendor.id;
       }
+
       await api.post("/admin/pickups-deliveries", body);
       toast.success(
         `${form.delivery_type === "pickup" ? "Pickup" : "Delivery"} task created successfully`
@@ -577,7 +786,7 @@ function CreateTaskDialog({
             </div>
           </FormField>
 
-          {/* Conditional fields */}
+          {/* Pickup-specific: Farmer + Crop */}
           {form.delivery_type === "pickup" && (
             <div className="grid grid-cols-2 gap-3">
               <FormField label="Farmer ID" id="farmer_id">
@@ -598,22 +807,26 @@ function CreateTaskDialog({
               </FormField>
             </div>
           )}
+
+          {/* Delivery-specific: Order + Vendor (searchable) */}
           {form.delivery_type === "delivery" && (
             <div className="grid grid-cols-2 gap-3">
-              <FormField label="Order ID" id="order_id">
-                <Input
+              <FormField label="Order" id="order_id">
+                <SearchSelect
                   id="order_id"
-                  placeholder="e.g. 10"
-                  value={form.order_id}
-                  onChange={(e) => set("order_id", e.target.value)}
+                  placeholder="Search order number…"
+                  value={selectedOrder}
+                  onChange={setSelectedOrder}
+                  fetchOptions={fetchOrders}
                 />
               </FormField>
-              <FormField label="Vendor ID" id="vendor_id">
-                <Input
+              <FormField label="Vendor" id="vendor_id">
+                <SearchSelect
                   id="vendor_id"
-                  placeholder="e.g. 3"
-                  value={form.vendor_id}
-                  onChange={(e) => set("vendor_id", e.target.value)}
+                  placeholder="Search shop name…"
+                  value={selectedVendor}
+                  onChange={setSelectedVendor}
+                  fetchOptions={fetchVendors}
                 />
               </FormField>
             </div>
@@ -695,14 +908,15 @@ function CreateTaskDialog({
             </div>
           </div>
 
-          {/* Assignment */}
+          {/* Delivery Person (searchable) + Quantity */}
           <div className="grid grid-cols-2 gap-3">
-            <FormField label="Delivery Person ID *" id="delivery_person_id">
-              <Input
+            <FormField label="Delivery Person *" id="delivery_person_id">
+              <SearchSelect
                 id="delivery_person_id"
-                placeholder="e.g. 2"
-                value={form.delivery_person_id}
-                onChange={(e) => set("delivery_person_id", e.target.value)}
+                placeholder="Search by name…"
+                value={selectedDeliveryPerson}
+                onChange={setSelectedDeliveryPerson}
+                fetchOptions={fetchDeliveryPersons}
               />
             </FormField>
             <FormField label="Expected Qty (kg)" id="expected_quantity_kg">
@@ -716,6 +930,7 @@ function CreateTaskDialog({
             </FormField>
           </div>
 
+          {/* Schedule */}
           <div className="grid grid-cols-2 gap-3">
             <FormField label="Scheduled Date *" id="scheduled_date">
               <Input
@@ -794,15 +1009,37 @@ function AssignDialog({
   onOpenChange: (v: boolean) => void;
   onAssigned: () => void;
 }) {
-  const [deliveryPersonId, setDeliveryPersonId] = useState("");
+  const [selectedDeliveryPerson, setSelectedDeliveryPerson] =
+    useState<SearchSelectOption | null>(null);
   const [scheduledDate, setScheduledDate] = useState("");
   const [timeSlot, setTimeSlot] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const fetchDeliveryPersons = useCallback(async (query: string) => {
+    const res = await api.get(
+      `/admin/delivery-personnel?search=${encodeURIComponent(query)}&limit=20`
+    );
+    const raw = res.data?.data;
+    const list: Record<string, unknown>[] =
+      raw?.personnel ?? raw?.delivery_personnel ?? (Array.isArray(raw) ? raw : []);
+    return list.map((p) => ({
+      id: p.delivery_person_id as number,
+      label: p.full_name as string,
+      sublabel: `${String(p.vehicle_type ?? "").toUpperCase()} · ${p.vehicle_number ?? ""}`,
+    }));
+  }, []);
+
   useEffect(() => {
     if (open && task) {
-      setDeliveryPersonId(
-        task.delivery_person_id ? String(task.delivery_person_id) : ""
+      // Pre-populate with currently assigned person if any
+      setSelectedDeliveryPerson(
+        task.delivery_person
+          ? {
+              id: task.delivery_person.delivery_person_id,
+              label: task.delivery_person.full_name,
+              sublabel: `${task.delivery_person.vehicle_type.toUpperCase()} · ${task.delivery_person.vehicle_number}`,
+            }
+          : null
       );
       setScheduledDate(task.scheduled_date ?? "");
       setTimeSlot(task.scheduled_time_slot ?? "");
@@ -810,14 +1047,14 @@ function AssignDialog({
   }, [open, task]);
 
   const handleAssign = async () => {
-    if (!task || !deliveryPersonId || !scheduledDate || !timeSlot) {
-      toast.error("Fill all fields");
+    if (!task || !selectedDeliveryPerson?.id || !scheduledDate || !timeSlot) {
+      toast.error("Please fill all required fields");
       return;
     }
     setLoading(true);
     try {
       await api.patch(`/admin/pickups-deliveries/${task.delivery_id}/assign`, {
-        delivery_person_id: Number(deliveryPersonId),
+        delivery_person_id: selectedDeliveryPerson.id,
         scheduled_date: scheduledDate,
         scheduled_time_slot: timeSlot,
       });
@@ -844,12 +1081,13 @@ function AssignDialog({
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3 py-2">
-          <FormField label="Delivery Person ID *" id="assign_dp_id">
-            <Input
+          <FormField label="Delivery Person *" id="assign_dp_id">
+            <SearchSelect
               id="assign_dp_id"
-              placeholder="e.g. 2"
-              value={deliveryPersonId}
-              onChange={(e) => setDeliveryPersonId(e.target.value)}
+              placeholder="Search by name…"
+              value={selectedDeliveryPerson}
+              onChange={setSelectedDeliveryPerson}
+              fetchOptions={fetchDeliveryPersons}
             />
           </FormField>
           <FormField label="Scheduled Date *" id="assign_date">
@@ -1128,11 +1366,11 @@ function TaskDetailSheet({
                         </div>
                       </div>
                     )}
-{STATUS_FLOW[task.status]?.filter(
+                    {STATUS_FLOW[task.status]?.filter(
                       (s) => s !== "cancelled"
                     ).length === 0 && (
                       <p className="text-xs text-muted-foreground font-medium">
-                        No further actions available:DELIVERY COMPLETED
+                        No further actions available: DELIVERY COMPLETED
                       </p>
                     )}
                     {!NON_CANCELLABLE.includes(task.status) && (
@@ -1443,7 +1681,7 @@ function TaskDetailSheet({
                   </div>
                 )}
 
-                {/* Notes + proof */}
+                {/* Notes */}
                 {task.delivery_notes && (
                   <div className="rounded-xl border border-amber-200 bg-amber-50/50 px-4 py-3">
                     <p className="text-xs font-semibold text-amber-800 mb-0.5">
@@ -1453,6 +1691,7 @@ function TaskDetailSheet({
                   </div>
                 )}
 
+                {/* Proof photo */}
                 {task.proof_photo_url && (
                   <div className="rounded-xl border border-border bg-card overflow-hidden">
                     <div className="px-4 py-2.5 border-b border-border bg-muted/20">
@@ -1490,12 +1729,10 @@ function TaskDetailSheet({
                   </div>
                 ) : (
                   <div className="relative">
-                    {/* Timeline line */}
                     <div className="absolute left-3.5 top-2 bottom-2 w-px bg-border" />
                     <div className="space-y-4 pl-10">
                       {history.map((h, i) => (
                         <div key={h.history_id} className="relative">
-                          {/* dot */}
                           <div
                             className={`absolute -left-[26px] top-1 w-3 h-3 rounded-full border-2 border-background ${
                               i === 0 ? "bg-primary" : "bg-muted-foreground/40"
@@ -1607,7 +1844,6 @@ export default function PickupsDeliveriesPage() {
     return () => clearTimeout(timer);
   }, [fetchTasks]);
 
-  // Reset page when tab or filters change
   useEffect(() => {
     setPage(1);
   }, [activeTab, filters]);
@@ -1677,7 +1913,7 @@ export default function PickupsDeliveriesPage() {
 
             {/* ── Main Card ── */}
             <Card className="border-none shadow-md ring-1 ring-border bg-white/70 backdrop-blur-sm">
-              {/* ── Tab switcher ── */}
+              {/* Tab switcher */}
               <div className="border-b bg-muted/10">
                 <div className="flex px-4 pt-3">
                   {(["pickup", "delivery"] as DeliveryType[]).map((t) => (
@@ -1701,10 +1937,9 @@ export default function PickupsDeliveriesPage() {
                 </div>
               </div>
 
-              {/* ── Toolbar ── */}
+              {/* Toolbar */}
               <div className="flex flex-col gap-3 p-4 border-b bg-muted/30 md:flex-row md:items-center md:justify-between">
                 <div className="flex flex-wrap gap-2 items-center">
-                  {/* Status filter */}
                   <Select
                     value={filters.status || "all_status"}
                     onValueChange={(v) =>
@@ -1727,7 +1962,6 @@ export default function PickupsDeliveriesPage() {
                     </SelectContent>
                   </Select>
 
-                  {/* Date range */}
                   <div className="flex items-center gap-1.5">
                     <Input
                       type="date"
@@ -1748,7 +1982,6 @@ export default function PickupsDeliveriesPage() {
                     />
                   </div>
 
-                  {/* Reset */}
                   {hasActiveFilters && (
                     <Button
                       variant="outline"
@@ -1769,7 +2002,7 @@ export default function PickupsDeliveriesPage() {
                 )}
               </div>
 
-              {/* ── Table ── */}
+              {/* Table */}
               <div className="overflow-x-auto">
                 <Table className="min-w-[860px]">
                   <TableHeader>
@@ -1915,7 +2148,7 @@ export default function PickupsDeliveriesPage() {
                 </Table>
               </div>
 
-              {/* ── Pagination ── */}
+              {/* Pagination */}
               {pagination?.total_pages > 1 && (
                 <div className="flex flex-col gap-3 border-t bg-muted/20 p-4 md:flex-row md:items-center md:justify-between">
                   <span className="text-xs text-muted-foreground">
@@ -1979,7 +2212,7 @@ export default function PickupsDeliveriesPage() {
         </SidebarInset>
       </SidebarProvider>
 
-      {/* ── Task Detail Sheet ── */}
+      {/* Task Detail Sheet */}
       <TaskDetailSheet
         taskId={selectedTaskId}
         open={sheetOpen}
@@ -1990,7 +2223,7 @@ export default function PickupsDeliveriesPage() {
         onTaskUpdated={fetchTasks}
       />
 
-      {/* ── Create Task Dialog ── */}
+      {/* Create Task Dialog */}
       <CreateTaskDialog
         open={createOpen}
         onOpenChange={setCreateOpen}

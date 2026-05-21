@@ -27,6 +27,9 @@ import {
   IconBell,
   IconLogout,
   IconUserFilled,
+  IconBuildingStore,
+  IconLeaf,
+  IconChartLine,
 } from "@tabler/icons-react";
 import logo from "../public/APOM logo.png";
 import { NavMain } from "@/components/nav-main";
@@ -42,32 +45,44 @@ import {
   SidebarMenuItem,
 } from "@/components/animate-ui/components/radix/sidebar";
 
+export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+
+  const [userEmail, setUserEmail] = React.useState("");
+
+  React.useEffect(() => {
+    const userData = JSON.parse(
+      localStorage.getItem("user_data") || "{}"
+    );
+
+    setUserEmail(userData.mobile_number || "");
+  }, []);
+
 const data = {
   user: {
     name: "Apom Admin",
-    email: JSON.parse(localStorage.getItem("user_data") || "{}").mobile_number,
+      email: userEmail,
     avatar: IconUserFilled,
   },
   navMain: [
     {
       title: "Dashboard",
       url: "/dashboard",
-      icon: IconDashboard,
+        icon: IconChartLine,
     },
     {
       title: "Farmer Management",
       url: "/farmer-management",
-      icon: IconUsers,
+        icon: IconLeaf,
     },
     {
       title: "Vendor Management",
       url: "/vendor-management",
-      icon: IconBuilding,
+        icon: IconBuildingStore,
     },
     {
-      title: "Delivery Management",
+        title: "Delivery Personnel",
       url: "/delivery-management",
-      icon: IconListDetails,
+        icon: IconUsers,
     },
     {
       title: "Product Management",
@@ -90,18 +105,13 @@ const data = {
       icon: IconBell,
     },
     {
-      title: "Admin Management",
+        title: "Admin Accounts",
       url: "/admins",
       icon: IconShield,
     },
   ],
 
   navSecondary: [
-    // {
-    //   title: "Settings",
-    //   url: "#",
-    //   icon: IconSettings,
-    // },
     {
       title: "Log out",
       url: "#",
@@ -110,7 +120,6 @@ const data = {
   ],
 };
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
     <Sidebar collapsible="offcanvas" {...props}>
       <SidebarHeader>
