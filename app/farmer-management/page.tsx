@@ -48,6 +48,7 @@ import {
 import { toast } from "sonner";
 import ProtectedRoute from "../routes/ProtectedRoute";
 import api from "@/app/services/api";
+import * as XLSX from "xlsx";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -70,6 +71,9 @@ export default function FarmerManagement() {
   const [statusUpdatingId, setStatusUpdatingId] = useState<string | null>(null);
   const [sortBy] = useState("created_at");
   const [order] = useState<"asc" | "desc">("desc");
+
+
+  console.log(farmers);
 
   // Confirmation dialog state
   const [confirmation, setConfirmation] = useState<ConfirmationState>({
@@ -203,7 +207,67 @@ export default function FarmerManagement() {
       setIsProcessing(false);
     }
   };
+const exportFarmersToExcel = () => {
+  if (!farmers?.length) return;
 
+  const excelData = farmers.map((farmer: any, index: number) => ({
+    "S.No": index + 1,
+
+    "Farmer Name": farmer.full_name ?? "-",
+
+    Mobile: farmer.mobile_number ?? "-",
+
+    Address: farmer.location_address ?? "-",
+
+    State: farmer.state?.state_name ?? "-",
+
+    District: farmer.district?.district_name ?? "-",
+
+    City: farmer.city?.city_name ?? "-",
+
+    Pincode:
+      farmer.location_address?.match(/\b\d{6}\b/)?.[0] ?? "-",
+
+    "Total Land":
+      `${farmer.total_land ?? 0} ${farmer.land_unit ?? ""}`,
+
+    "Total Earnings": farmer.total_earnings ?? "0.00",
+
+    "Total Supplies": farmer.total_supplies ?? 0,
+  }));
+
+  const worksheet = XLSX.utils.json_to_sheet(excelData);
+
+  worksheet["!cols"] = [
+    { wch: 8 },   // S.No
+    { wch: 25 },  // Farmer
+    { wch: 18 },  // Mobile
+    { wch: 45 },  // Address
+    { wch: 18 },  // State
+    { wch: 20 },  // District
+    { wch: 18 },  // City
+    { wch: 12 },  // Pincode
+    { wch: 15 },  // Total Land
+    { wch: 18 },  // Earnings
+    { wch: 15 },  // Supplies
+  ];
+
+  const workbook = XLSX.utils.book_new();
+
+  XLSX.utils.book_append_sheet(
+    workbook,
+    worksheet,
+    "Farmers Report"
+  );
+
+  XLSX.writeFile(
+    workbook,
+    `farmers_report_${
+      new Date().toISOString().split("T")[0]
+    }.xlsx`
+  );
+    toast.success(`Exported ${farmers.length} farmer records`);
+};
   return (
     <ProtectedRoute>
       <SidebarProvider
@@ -306,6 +370,16 @@ export default function FarmerManagement() {
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
+                   <Button
+                    variant="outline"
+                    size="sm"
+                    className="bg-white dark:bg-card hover:border-primary/50"
+                    onClick={
+                     exportFarmersToExcel
+                    }
+                  >
+                  Export
+                </Button>
                 </div>
               </div>
 

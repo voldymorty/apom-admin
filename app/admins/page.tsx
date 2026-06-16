@@ -566,7 +566,7 @@ export default function AdminsManagementPage() {
 
                   <form onSubmit={handleSubmit} className="space-y-5">
                     <div className="grid gap-4">
-                      <div className="space-y-2">
+                      {/* <div className="space-y-2">
                           <Label
                             htmlFor="name"
                             className="text-xs font-bold uppercase tracking-widest ml-1 text-muted-foreground"
@@ -582,7 +582,7 @@ export default function AdminsManagementPage() {
                           className="h-12 rounded-xl bg-muted/30 border-muted/50 focus-visible:ring-primary/20"
                           required
                         />
-                      </div>
+                      </div> */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label
@@ -641,7 +641,7 @@ export default function AdminsManagementPage() {
                           required={modalMode === "add"}
                         />
                       </div>
-                      <div className="space-y-2">
+                      {/* <div className="space-y-2">
                           <Label htmlFor="role" className="text-xs font-bold uppercase tracking-widest ml-1 text-muted-foreground">Permission Hierarchy</Label>
                           <Select 
                             value={formData.role} 
@@ -655,7 +655,7 @@ export default function AdminsManagementPage() {
                               <SelectItem value="superadmin">System Superuser</SelectItem>
                             </SelectContent>
                           </Select>
-                      </div>
+                      </div> */}
                     </div>
 
                     <div className="flex items-center justify-end gap-3 pt-6 border-t border-muted/50">

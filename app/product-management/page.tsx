@@ -74,10 +74,10 @@ import {
 } from "@tabler/icons-react";
 import { toast } from "sonner";
 import ProtectedRoute from "../routes/ProtectedRoute";
-import api from "@/app/services/api";
+import api, { imageBaseURL } from "@/app/services/api";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-export const imgURL = "http://172.16.0.227:5000";
+// export const imgURL = "http://172.16.0.227:5000";
 const GRADES = ["A", "B", "C"] as const;
 type Grade = (typeof GRADES)[number];
 
@@ -370,7 +370,7 @@ const [deleting, setDeleting] = useState(false);
                 filtered.map((cat, i) => (
                   <TableRow key={cat.category_id} className="group hover:bg-primary/5 border-b last:border-0">
                     <TableCell className="px-4 py-3 text-muted-foreground">{i + 1}</TableCell>
-                    <TableCell className="px-4 py-3 font-semibold"><img src={`${imgURL}${cat.image_url}`} className="h-20 w-25" alt="cat.img" /></TableCell>
+                    <TableCell className="px-4 py-3 font-semibold"><img src={`${imageBaseURL}${cat.image_url}`} className="h-20 w-25" alt="cat.img" /></TableCell>
                     <TableCell className="px-4 py-3 font-semibold">{cat.category_name}</TableCell>
                     <TableCell className="px-4 py-3">
                       <Badge variant="outline" className="font-mono text-xs">{cat.category_code}</Badge>
@@ -400,7 +400,7 @@ const [deleting, setDeleting] = useState(false);
         </div>
       </Card>
 
-      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+      {/* <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
         <SheetContent className="w-full sm:max-w-md overflow-y-auto">
           <SheetHeader>
             <SheetTitle>{editTarget ? "Edit Category" : "Add Category"}</SheetTitle>
@@ -410,10 +410,15 @@ const [deleting, setDeleting] = useState(false);
           </SheetHeader>
           <form onSubmit={handleSubmit} className="mt-6 space-y-4 px-4">
             <FormField label="Category Name *" id="cat_name">
-              <Input id="cat_name" value={form.category_name} onChange={(e) => setForm((f) => ({ ...f, category_name: e.target.value }))} placeholder="e.g. Vegetables" required />
+              <Input id="cat_name" value={form.category_name} className="capitalize" onChange={(e) =>{ 
+                 const value = e.target.value
+    .toLowerCase()
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+
+                setForm((f) => ({ ...f, category_name:value }))} } placeholder=" eg.Vegetables" required />
             </FormField>
             <FormField label="Category Code *" id="cat_code">
-              <Input id="cat_code" value={form.category_code} onChange={(e) => setForm((f) => ({ ...f, category_code: e.target.value.toUpperCase() }))} placeholder="e.g. VEG" required />
+              <Input id="cat_code" value={form.category_code} className="capitalize" onChange={(e) => setForm((f) => ({ ...f, category_code: e.target.value.toUpperCase() }))} placeholder="eg. VEG" required />
             </FormField>
             <FormField label="Description" id="cat_desc">
               <Textarea id="cat_desc" value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} placeholder="Optional description" rows={3} />
@@ -441,7 +446,114 @@ const [deleting, setDeleting] = useState(false);
             </SheetFooter>
           </form>
         </SheetContent>
-      </Sheet>
+      </Sheet> */}
+
+
+<Dialog open={sheetOpen} onOpenChange={setSheetOpen}>
+  <DialogContent className="sm:max-w-[480px] max-h-[90vh] flex flex-col gap-0 p-0 overflow-hidden">
+    {/* Header */}
+    <DialogHeader className="px-5 pt-5 pb-3 border-b shrink-0">
+      <DialogTitle className="flex items-center gap-2 text-base">
+        <IconCategory className="size-4 text-muted-foreground" />
+        {editTarget ? "Edit Category" : "Add Category"}
+      </DialogTitle>
+      <DialogDescription className="text-xs mt-0.5">
+        {editTarget ? "Update category details below." : "Fill in the details to create a new category."}
+      </DialogDescription>
+    </DialogHeader>
+
+    <form onSubmit={handleSubmit} className="flex flex-col min-h-0 flex-1">
+      {/* Scrollable body */}
+      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+        <FormField label="Category Name *" id="cat_name">
+          <Input
+            id="cat_name"
+            value={form.category_name}
+            className="capitalize"
+            onChange={(e) => {
+              const value = e.target.value
+                .toLowerCase()
+                .replace(/\b\w/g, (c) => c.toUpperCase());
+              setForm((f) => ({ ...f, category_name: value }));
+            }}
+            placeholder=" eg.Vegetables"
+            required
+          />
+        </FormField>
+        <FormField label="Category Code *" id="cat_code">
+          <Input
+            id="cat_code"
+            value={form.category_code}
+            className="capitalize"
+            onChange={(e) => setForm((f) => ({ ...f, category_code: e.target.value.toUpperCase() }))}
+            placeholder="eg. VEG"
+            required
+          />
+        </FormField>
+        <FormField label="Description" id="cat_desc">
+          <Textarea
+            id="cat_desc"
+            value={form.description}
+            onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+            placeholder="Optional description"
+            rows={3}
+          />
+        </FormField>
+        <FormField label="Display Order" id="cat_order">
+          <Input
+            id="cat_order"
+            type="number"
+            min={0}
+            value={form.display_order}
+            onChange={(e) => setForm((f) => ({ ...f, display_order: e.target.value }))}
+            placeholder="e.g. 1"
+          />
+        </FormField>
+        <FormField label="Category Image" id="cat_image">
+          <div className="flex items-center gap-3">
+            <input
+              ref={imageRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => handleimgerror(e.target.files?.[0] ?? null)}
+            />
+            <Button type="button" variant="outline" size="sm" onClick={() => imageRef.current?.click()}>
+              Choose Image
+            </Button>
+            <span className="text-sm text-muted-foreground truncate max-w-[180px]">
+              {imageFile ? imageFile.name : "No file chosen"}
+            </span>
+          </div>
+          {imgerr && (
+            <span className="text-sm text-red-600">Only JPG, JPEG, PNG images are allowed</span>
+          )}
+        </FormField>
+        {editTarget && (
+          <div className="flex items-center gap-3">
+            <Switch
+              id="cat_active"
+              checked={form.is_active}
+              onCheckedChange={(v) => setForm((f) => ({ ...f, is_active: v }))}
+            />
+            <Label htmlFor="cat_active">Active</Label>
+          </div>
+        )}
+      </div>
+
+      {/* Footer */}
+      <DialogFooter className="px-5 py-3 border-t shrink-0 gap-2">
+        <Button type="button" variant="outline" onClick={() => setSheetOpen(false)} disabled={saving}>
+          Cancel
+        </Button>
+        <Button type="submit" disabled={saving}>
+          {saving ? "Saving..." : editTarget ? "Save Changes" : "Create Category"}
+        </Button>
+      </DialogFooter>
+    </form>
+  </DialogContent>
+</Dialog>
+
 
       {/* ── Delete Confirmation Dialog ── */}
 <Dialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
@@ -454,7 +566,7 @@ const [deleting, setDeleting] = useState(false);
       <DialogDescription>
         Are you sure you want to delete{" "}
         <span className="font-semibold text-foreground">{deleteTarget?.category_name}</span>?
-        This action will delete the category permanently.
+        <b>Are you sure you want to delete Fruits? This will permanently delete the category and all associated products, inventory, and related data.</b>
       </DialogDescription>
     </DialogHeader>
     <DialogFooter>
@@ -500,10 +612,15 @@ const [productDeleting, setProductDeleting] = useState(false);
     Record<number, { detail: any | null; loading: boolean }>
   >({});
 
+  // ── Edit Inventory & Pricing dialog ───────────────────────────────────────────
+const [editInvPriceOpen, setEditInvPriceOpen] = useState(false);
+const [editInvPriceProduct, setEditInvPriceProduct] = useState<any | null>(null);
+
   // ── Low stock (from InventoryTab) ──────────────────────────────────────────
   const [lowStock, setLowStock] = useState<any[]>([]);
   const [lowStockCount, setLowStockCount] = useState(0);
-
+const [productFormTab, setProductFormTab] = useState<"details" | "inventory">("details");
+const [productFormGrade, setProductFormGrade] = useState<Grade>("A");
   // ── Create / Edit product sheet ────────────────────────────────────────────
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<any | null>(null);
@@ -545,7 +662,7 @@ const [productDeleting, setProductDeleting] = useState(false);
     wholesale_price_per_kg: "",
     retail_price_per_kg: "",
     minimum_order_kg: "10",
-    effective_from: "",
+    effective_from: new Date().toISOString().split("T")[0],
     effective_to: "",
   });
 
@@ -566,9 +683,9 @@ const [productDeleting, setProductDeleting] = useState(false);
       C: { available_quantity_kg: "", warehouse_location: "", minimum_stock_alert: "" },
     } as Record<Grade, { available_quantity_kg: string; warehouse_location: string; minimum_stock_alert: string }>,
     pricing: {
-      A: { base_price_per_kg: "", wholesale_price_per_kg: "", retail_price_per_kg: "", minimum_order_kg: "10", effective_from: "", effective_to: "" },
-      B: { base_price_per_kg: "", wholesale_price_per_kg: "", retail_price_per_kg: "", minimum_order_kg: "10", effective_from: "", effective_to: "" },
-      C: { base_price_per_kg: "", wholesale_price_per_kg: "", retail_price_per_kg: "", minimum_order_kg: "10", effective_from: "", effective_to: "" },
+      A: { base_price_per_kg: "", wholesale_price_per_kg: "", retail_price_per_kg: "", minimum_order_kg: "10", effective_from: new Date().toISOString().split("T")[0], effective_to: "" },
+      B: { base_price_per_kg: "", wholesale_price_per_kg: "", retail_price_per_kg: "", minimum_order_kg: "10", effective_from: new Date().toISOString().split("T")[0], effective_to: "" },
+      C: { base_price_per_kg: "", wholesale_price_per_kg: "", retail_price_per_kg: "", minimum_order_kg: "10", effective_from: new Date().toISOString().split("T")[0], effective_to: "" },
     } as Record<Grade, { base_price_per_kg: string; wholesale_price_per_kg: string; retail_price_per_kg: string; minimum_order_kg: string; effective_from: string; effective_to: string }>,
   });
 
@@ -667,6 +784,8 @@ const [productDeleting, setProductDeleting] = useState(false);
     setEditTarget(null);
     setForm(emptyProductForm());
     setImageFile(null);
+      setProductFormTab("details"); 
+  setProductFormGrade("A");        
     setSheetOpen(true);
   };
 
@@ -691,29 +810,39 @@ const [productDeleting, setProductDeleting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if(!editTarget) {
     if (!form.category_id) { toast.error("Category is required"); return; }
     if (!form.product_name.trim()) { toast.error("Product name is required"); return; }
     if (!form.product_code.trim()) { toast.error("Product code is required"); return; }
     if(!form.inventory) { toast.error("Product Unit is required"); return; };
+    if(!imageFile) { toast.error("Product Image is required"); return; };
 
-    {
-      const grades = ["A", "B", "C"];
 
-const hasValidInventory = grades.some((grade) => {
-  const item = form.inventory[grade];
+  const grades = ["A", "B", "C"] as const;
+const missingGrade = grades.find((g) => {
+  const item = form.inventory[g];
+  return item.available_quantity_kg === "" || item.minimum_stock_alert === "";
+});
+if (missingGrade) {
+  toast.error(`Inventory quantity and min alert are required for Grade ${missingGrade} (enter 0 if none)`);
+  setProductFormTab("inventory");
+  setProductFormGrade(missingGrade);
+  return;
+}
 
+// ── NEW: Pricing validation ──
+const missingPricingGrade = grades.find((g) => {
+  const item = form.pricing[g];
   return (
-    item?.available_quantity_kg &&
-    item?.warehouse_location &&
-    item?.minimum_stock_alert
+    item.base_price_per_kg === "" ||
+    item.wholesale_price_per_kg === "" ||
+    item.retail_price_per_kg === ""
   );
 });
-
-if (!hasValidInventory) {
-  toast.error(
-    "At least one complete inventory detail is required."
-  );
-
+if (missingPricingGrade) {
+  toast.error(`Base, wholesale and retail prices are required for Grade ${missingPricingGrade}`);
+  setProductFormTab("inventory");
+  setProductFormGrade(missingPricingGrade);
   return;
 }
     }
@@ -742,20 +871,20 @@ if (!hasValidInventory) {
           .map((g) => ({
             grade: g,
             available_quantity_kg: Number(form.inventory[g].available_quantity_kg),
-            warehouse_location: form.inventory[g].warehouse_location || undefined,
+            // warehouse_location: form.inventory[g].warehouse_location || undefined,
             minimum_stock_alert: form.inventory[g].minimum_stock_alert ? Number(form.inventory[g].minimum_stock_alert) : 20,
           }));
         const pricingArr = GRADES
-          .filter((g) => form.pricing[g].base_price_per_kg !== "" && form.pricing[g].effective_from !== "")
-          .map((g) => ({
-            grade: g,
-            base_price_per_kg: Number(form.pricing[g].base_price_per_kg),
-            wholesale_price_per_kg: Number(form.pricing[g].wholesale_price_per_kg),
-            ...(form.pricing[g].retail_price_per_kg ? { retail_price_per_kg: Number(form.pricing[g].retail_price_per_kg) } : {}),
-            minimum_order_kg: Number(form.pricing[g].minimum_order_kg) || 10,
-            effective_from: form.pricing[g].effective_from,
-            ...(form.pricing[g].effective_to ? { effective_to: form.pricing[g].effective_to } : {}),
-          }));
+  .filter((g) => form.pricing[g].base_price_per_kg !== "")
+  .map((g) => ({
+    grade: g,
+    base_price_per_kg: Number(form.pricing[g].base_price_per_kg),
+    wholesale_price_per_kg: Number(form.pricing[g].wholesale_price_per_kg),
+    ...(form.pricing[g].retail_price_per_kg ? { retail_price_per_kg: Number(form.pricing[g].retail_price_per_kg) } : {}),
+    minimum_order_kg: Number(form.pricing[g].minimum_order_kg) || 10,
+    effective_from: form.pricing[g].effective_from || new Date().toISOString().split("T")[0],
+    ...(form.pricing[g].effective_to ? { effective_to: form.pricing[g].effective_to } : {}),
+  }));
         if (inventoryArr.length > 0) fd.append("inventory", JSON.stringify(inventoryArr));
         if (pricingArr.length > 0) fd.append("pricing", JSON.stringify(pricingArr));
         await api.post("/admin/products", fd);
@@ -935,7 +1064,7 @@ const handleDelete = async () => {
       wholesale_price_per_kg: "",
       retail_price_per_kg: "",
       minimum_order_kg: "10",
-      effective_from: "",
+      effective_from: new Date().toISOString().split("T")[0],
       effective_to: "",
     });
     setPricingSheetOpen(true);
@@ -982,6 +1111,11 @@ const handleDelete = async () => {
       toast.error(err.response?.data?.message ?? "Failed to deactivate pricing");
     }
   };
+
+  const openEditInvPrice = (product: any) => {
+  setEditInvPriceProduct(product);
+  setEditInvPriceOpen(true);
+};
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
@@ -1132,7 +1266,7 @@ const handleDelete = async () => {
                         </TableCell>
                         <TableCell className="px-4 py-3 text-muted-foreground">{(page - 1) * limit + i + 1}</TableCell>
                         <TableCell className="px-4 py-3">
-                          <img src={`${imgURL}${p.image_url}`} className="h-20 w-20 object-cover rounded" alt={p.product_name} />
+                          <img src={`${imageBaseURL}${p.image_url}`} className="h-20 w-20 object-cover rounded" alt={p.product_name} />
                         </TableCell>
                         <TableCell className="px-4 py-3">
                           <div className="flex items-center gap-1">
@@ -1196,6 +1330,7 @@ const handleDelete = async () => {
                                 onViewHistory={(grade) => openTransactions(rowState.detail.product_id, rowState.detail.product_name, grade)}
                                 onAddPricing={() => openAddPricing(rowState.detail.product_id)}
                                 onDeletePricing={(pricingId) => handleDeletePricing(pricingId, rowState.detail.product_id)}
+                                onEditInvPrice={() => openEditInvPrice(rowState.detail)}
                               />
                             ) : null}
                           </TableCell>
@@ -1226,62 +1361,156 @@ const handleDelete = async () => {
       {/* ════════════════════════════════════════════════════════════════════
           CREATE / EDIT PRODUCT SHEET  (unchanged from original)
       ════════════════════════════════════════════════════════════════════ */}
-      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>{editTarget ? "Edit Product" : "Add Product"}</SheetTitle>
-            <SheetDescription>
-              {editTarget ? "Update product details below." : "Fill in the details to add a new product."}
-            </SheetDescription>
-          </SheetHeader>
-          <form onSubmit={handleSubmit} className="mt-6 space-y-6 px-4">
+   {/* ════════════════════════════════════════════════════════════════════
+    CREATE / EDIT PRODUCT SHEET
+════════════════════════════════════════════════════════════════════ */}
+<Dialog open={sheetOpen} onOpenChange={setSheetOpen}>
+  <DialogContent className="sm:max-w-[560px] max-h-[90vh] flex flex-col gap-0 p-0 overflow-hidden">
+    {/* Header */}
+    <DialogHeader className="px-5 pt-5 pb-3 border-b shrink-0">
+      <DialogTitle className="flex items-center gap-2 text-base">
+        <IconPackage className="size-4 text-muted-foreground" />
+        {editTarget ? "Edit Product" : "Add Product"}
+      </DialogTitle>
+      <DialogDescription className="text-xs mt-0.5">
+        {editTarget ? "Update product details below." : "Fill in the details to add a new product."}
+      </DialogDescription>
+    </DialogHeader>
+
+    {/* Tab bar */}
+    {!editTarget && (
+      <div className="flex border-b shrink-0 bg-muted/30">
+        {(["details", "inventory"] as const).map((t) => (
+          <button
+            key={t}
+            type="button"
+            onClick={() => setProductFormTab(t)}
+            className={`flex-1 py-2.5 text-sm font-medium transition-colors border-b-2 cursor-pointer ${
+              productFormTab === t
+                ? "border-primary text-foreground bg-background"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {t === "details" ? "Product details" : "Inventory & pricing"}
+          </button>
+        ))}
+      </div>
+    )}
+
+    <form onSubmit={handleSubmit} className="flex flex-col min-h-0 flex-1">
+      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+
+        {/* ── TAB 1: Product Details ── */}
+        {(editTarget || productFormTab === "details") && (
+          <>
             <SectionHeading>Basic Information</SectionHeading>
             <div className="grid grid-cols-2 gap-4">
               <FormField label="Product Name *" id="p_name" className="col-span-2">
-                <Input id="p_name" value={form.product_name} onChange={(e) => setForm((f) => ({ ...f, product_name: e.target.value }))} placeholder="e.g. Tomato" required />
+                <Input
+                  id="p_name"
+                  className="capitalize"
+                  value={form.product_name}
+                  onChange={(e) => {
+                    const value = e.target.value.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+                    setForm((f) => ({ ...f, product_name: value }));
+                  }}
+                  placeholder="eg. Tomato"
+                  required
+                />
               </FormField>
               <FormField label="Product Code *" id="p_code">
-                <Input id="p_code" value={form.product_code} onChange={(e) => setForm((f) => ({ ...f, product_code: e.target.value.toUpperCase() }))} placeholder="e.g. VEG001" required />
+                <Input
+                  id="p_code"
+                  value={form.product_code}
+                  onChange={(e) => setForm((f) => ({ ...f, product_code: e.target.value.toUpperCase() }))}
+                  placeholder="eg. VEG001"
+                  required
+                />
               </FormField>
               <FormField label="Category *" id="p_cat">
-                <Select value={form.category_id || "none"} required onValueChange={(v) => setForm((f) => ({ ...f, category_id: v === "none" ? "" : v }))}>
-                  <SelectTrigger id="p_cat" className="bg-white dark:bg-card"><SelectValue placeholder="Select category" /></SelectTrigger>
+                <Select
+                  value={form.category_id || "none"}
+                  required
+                  onValueChange={(v) => setForm((f) => ({ ...f, category_id: v === "none" ? "" : v }))}
+                >
+                  <SelectTrigger id="p_cat" className="bg-white dark:bg-card">
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
                   <SelectContent>
-                    {categories.map((c) => <SelectItem key={c.category_id} value={String(c.category_id)}>{c.category_name}</SelectItem>)}
+                    {categories.map((c) => (
+                      <SelectItem key={c.category_id} value={String(c.category_id)}>
+                        {c.category_name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </FormField>
               <FormField label="Unit" id="p_unit">
-                <Select value={form.unit || "none"} required onValueChange={(v) => setForm((f) => ({ ...f, unit: v === "none" ? "" : v }))}>
-                  <SelectTrigger id="p_unit" className="bg-white dark:bg-card"><SelectValue placeholder="Select unit" /></SelectTrigger>
+                <Select
+                  value={form.unit || "none"}
+                  required
+                  onValueChange={(v) => setForm((f) => ({ ...f, unit: v === "none" ? "" : v }))}
+                >
+                  <SelectTrigger id="p_unit" className="bg-white dark:bg-card">
+                    <SelectValue placeholder="Select unit" />
+                  </SelectTrigger>
                   <SelectContent>
-                    {units.map((u,index) => <SelectItem key={index} value={String(u)}>{u}</SelectItem>)}
+                    {units.map((u, index) => (
+                      <SelectItem key={index} value={String(u)}>{u}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
-                {/* <Input id="p_unit" value={form.unit} onChange={(e) => setForm((f) => ({ ...f, unit: e.target.value }))} placeholder="kg" />
-                 */}
               </FormField>
               <FormField label="Description" id="p_desc" className="col-span-2">
-                <Textarea id="p_desc" value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} placeholder="Optional description" rows={2} />
+                <Textarea
+                  id="p_desc"
+                  value={form.description}
+                  onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                  placeholder="Optional description"
+                  rows={2}
+                />
               </FormField>
             </div>
 
             <div className="flex items-center gap-3">
-              <Switch id="p_seasonal" checked={form.is_seasonal} onCheckedChange={(v) => setForm((f) => ({ ...f, is_seasonal: v }))} />
+              <Switch
+                id="p_seasonal"
+                checked={form.is_seasonal}
+                onCheckedChange={(v) => setForm((f) => ({ ...f, is_seasonal: v }))}
+              />
               <Label htmlFor="p_seasonal">Seasonal Product</Label>
             </div>
+
             {form.is_seasonal && (
               <div className="grid grid-cols-2 gap-4">
                 <FormField label="Season Start Month" id="p_start">
-                  <Select value={form.season_start_month || "none"} onValueChange={(v) => setForm((f) => ({ ...f, season_start_month: v === "none" ? "" : v }))}>
-                    <SelectTrigger className="bg-white dark:bg-card"><SelectValue placeholder="Select month" /></SelectTrigger>
-                    <SelectContent>{MONTHS.map((m) => <SelectItem key={m.value} value={String(m.value)}>{m.label}</SelectItem>)}</SelectContent>
+                  <Select
+                    value={form.season_start_month || "none"}
+                    onValueChange={(v) => setForm((f) => ({ ...f, season_start_month: v === "none" ? "" : v }))}
+                  >
+                    <SelectTrigger className="bg-white dark:bg-card">
+                      <SelectValue placeholder="Select month" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {MONTHS.map((m) => (
+                        <SelectItem key={m.value} value={String(m.value)}>{m.label}</SelectItem>
+                      ))}
+                    </SelectContent>
                   </Select>
                 </FormField>
                 <FormField label="Season End Month" id="p_end">
-                  <Select value={form.season_end_month || "none"} onValueChange={(v) => setForm((f) => ({ ...f, season_end_month: v === "none" ? "" : v }))}>
-                    <SelectTrigger className="bg-white dark:bg-card"><SelectValue placeholder="Select month" /></SelectTrigger>
-                    <SelectContent>{MONTHS.map((m) => <SelectItem key={m.value} value={String(m.value)}>{m.label}</SelectItem>)}</SelectContent>
+                  <Select
+                    value={form.season_end_month || "none"}
+                    onValueChange={(v) => setForm((f) => ({ ...f, season_end_month: v === "none" ? "" : v }))}
+                  >
+                    <SelectTrigger className="bg-white dark:bg-card">
+                      <SelectValue placeholder="Select month" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {MONTHS.map((m) => (
+                        <SelectItem key={m.value} value={String(m.value)}>{m.label}</SelectItem>
+                      ))}
+                    </SelectContent>
                   </Select>
                 </FormField>
               </div>
@@ -1289,86 +1518,258 @@ const handleDelete = async () => {
 
             <FormField label="Product Image" id="p_img">
               <div className="flex items-center gap-3">
-                <input ref={imageRef} type="file" accept="image/*" className="hidden" onChange={(e) => handleimgerr(e.target.files?.[0] ?? null)} />
-                <Button type="button" variant="outline" size="sm" onClick={() => imageRef.current?.click()}>Choose Image</Button>
-                <span className="text-sm text-muted-foreground truncate max-w-[200px]">{imageFile ? imageFile.name : "No file chosen"}</span>
+                <input
+                  ref={imageRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => handleimgerr(e.target.files?.[0] ?? null)}
+                />
+                <Button type="button" variant="outline" size="sm" onClick={() => imageRef.current?.click()}>
+                  Choose Image
+                </Button>
+                <span className="text-sm text-muted-foreground truncate max-w-[200px]">
+                  {imageFile ? imageFile.name : "No file chosen"}
+                </span>
               </div>
-              {imgerr && <div><span className="text-sm text-red-600">Only JPG, JPEG, PNG images are allowed</span></div>}
+              {imgerr && <span className="text-sm text-red-600">Only JPG, JPEG, PNG images are allowed</span>}
             </FormField>
 
             {editTarget && (
               <div className="flex items-center gap-3">
-                <Switch id="p_active" checked={form.is_active} onCheckedChange={(v) => setForm((f) => ({ ...f, is_active: v }))} />
+                <Switch
+                  id="p_active"
+                  checked={form.is_active}
+                  onCheckedChange={(v) => setForm((f) => ({ ...f, is_active: v }))}
+                />
                 <Label htmlFor="p_active">Active</Label>
               </div>
             )}
+          </>
+        )}
 
-            {!editTarget && (
-              <>
-                <SectionHeading>Initial Inventory (At least one Required)</SectionHeading>
-                <div className="space-y-4">
-                  {GRADES.map((g) => (
-                    <div key={g} className="rounded-xl border bg-muted/20 p-4 space-y-3">
-                      <div className="flex items-center gap-2">
-                        <GradeBadge grade={g} />
-                        <span className="text-sm font-medium">Grade {g} Inventory</span>
-                      </div>
-                      <div className="grid grid-cols-3 gap-3">
-                        <FormField label="Quantity (kg)" id={`inv_qty_${g}`}>
-                          <Input id={`inv_qty_${g}`} type="number" min={0} step="0.01" placeholder="0" value={form.inventory[g].available_quantity_kg} onChange={(e) => setForm((f) => ({ ...f, inventory: { ...f.inventory, [g]: { ...f.inventory[g], available_quantity_kg: e.target.value } } }))} />
-                        </FormField>
-                        <FormField label="Warehouse Location" id={`inv_wh_${g}`}>
-                          <Input id={`inv_wh_${g}`} placeholder="e.g. Rack-1" value={form.inventory[g].warehouse_location} onChange={(e) => setForm((f) => ({ ...f, inventory: { ...f.inventory, [g]: { ...f.inventory[g], warehouse_location: e.target.value } } }))} />
-                        </FormField>
-                        <FormField label="Min Stock Alert (kg)" id={`inv_min_${g}`}>
-                          <Input id={`inv_min_${g}`} type="number" min={0} step="0.01" placeholder="20" value={form.inventory[g].minimum_stock_alert} onChange={(e) => setForm((f) => ({ ...f, inventory: { ...f.inventory, [g]: { ...f.inventory[g], minimum_stock_alert: e.target.value } } }))} />
-                        </FormField>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+        {/* ── TAB 2: Inventory & Pricing (add only) ── */}
+        {!editTarget && productFormTab === "inventory" && (
+          <>
+            {/* Grade Tabs */}
+            <div className="flex gap-2">
+              {GRADES.map((g) => {
+                const styles: Record<string, string> = {
+                  A: "bg-emerald-50 text-emerald-800 border-emerald-300",
+                  B: "bg-sky-50 text-sky-800 border-sky-300",
+                  C: "bg-amber-50 text-amber-800 border-amber-300",
+                };
+                const inactive = "bg-muted/40 text-muted-foreground border-transparent hover:bg-muted/70";
+                return (
+                  <button
+                    key={g}
+                    type="button"
+                    onClick={() => setProductFormGrade(g)}
+                    className={`flex-1 py-1.5 rounded-lg border text-sm font-medium transition-colors cursor-pointer ${
+                      productFormGrade === g ? styles[g] : inactive
+                    }`}
+                  >
+                    Grade {g}
+                  </button>
+                );
+              })}
+            </div>
 
-                <SectionHeading>Initial Pricing (Optional)</SectionHeading>
-                <div className="space-y-4">
-                  {GRADES.map((g) => (
-                    <div key={g} className="rounded-xl border bg-muted/20 p-4 space-y-3">
-                      <div className="flex items-center gap-2">
-                        <GradeBadge grade={g} />
-                        <span className="text-sm font-medium">Grade {g} Pricing</span>
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <FormField label="Base Price / kg (Rs)" id={`pr_base_${g}`}>
-                          <Input id={`pr_base_${g}`} type="number" min={0} step="0.01" placeholder="0" value={form.pricing[g].base_price_per_kg} onChange={(e) => setForm((f) => ({ ...f, pricing: { ...f.pricing, [g]: { ...f.pricing[g], base_price_per_kg: e.target.value } } }))} />
-                        </FormField>
-                        <FormField label="Wholesale Price / kg (Rs)" id={`pr_ws_${g}`}>
-                          <Input id={`pr_ws_${g}`} type="number" min={0} step="0.01" placeholder="0" value={form.pricing[g].wholesale_price_per_kg} onChange={(e) => setForm((f) => ({ ...f, pricing: { ...f.pricing, [g]: { ...f.pricing[g], wholesale_price_per_kg: e.target.value } } }))} />
-                        </FormField>
-                        <FormField label="Retail Price / kg (Rs)" id={`pr_rt_${g}`}>
-                          <Input id={`pr_rt_${g}`} type="number" min={0} step="0.01" placeholder="0" value={form.pricing[g].retail_price_per_kg} onChange={(e) => setForm((f) => ({ ...f, pricing: { ...f.pricing, [g]: { ...f.pricing[g], retail_price_per_kg: e.target.value } } }))} />
-                        </FormField>
-                        <FormField label="Min Order (kg)" id={`pr_mo_${g}`}>
-                          <Input id={`pr_mo_${g}`} type="number" min={0} step="0.01" placeholder="10" value={form.pricing[g].minimum_order_kg} onChange={(e) => setForm((f) => ({ ...f, pricing: { ...f.pricing, [g]: { ...f.pricing[g], minimum_order_kg: e.target.value } } }))} />
-                        </FormField>
-                        <FormField label="Effective From *" id={`pr_ef_${g}`}>
-                          <Input id={`pr_ef_${g}`} type="date" value={form.pricing[g].effective_from} onChange={(e) => setForm((f) => ({ ...f, pricing: { ...f.pricing, [g]: { ...f.pricing[g], effective_from: e.target.value } } }))} />
-                        </FormField>
-                        <FormField label="Effective To" id={`pr_et_${g}`}>
-                          <Input id={`pr_et_${g}`} type="date" value={form.pricing[g].effective_to} onChange={(e) => setForm((f) => ({ ...f, pricing: { ...f.pricing, [g]: { ...f.pricing[g], effective_to: e.target.value } } }))} />
-                        </FormField>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
+            {/* Grade badge + hint */}
+            <div className="flex items-center gap-2">
+              <GradeBadge grade={productFormGrade} />
+              <span className="text-xs text-muted-foreground">
+                All inventory and Pricing fields required (enter 0 if none)
+              </span>
+            </div>
 
-            <SheetFooter className="pt-4 gap-2">
-              <Button type="button" variant="outline" onClick={() => setSheetOpen(false)} disabled={saving}>Cancel</Button>
-              <Button type="submit" disabled={saving}>{saving ? "Saving..." : editTarget ? "Save Changes" : "Create Product"}</Button>
-            </SheetFooter>
-          </form>
-        </SheetContent>
-      </Sheet>
+            {/* Inventory */}
+            <SectionHeading>Inventory</SectionHeading>
+            <div className="grid grid-cols-2 gap-3">
+              <FormField label="Quantity (kg) *" id={`inv_qty_${productFormGrade}`}>
+                <Input
+                  id={`inv_qty_${productFormGrade}`}
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  placeholder="0"
+                  value={form.inventory[productFormGrade].available_quantity_kg}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      inventory: {
+                        ...f.inventory,
+                        [productFormGrade]: { ...f.inventory[productFormGrade], available_quantity_kg: e.target.value },
+                      },
+                    }))
+                  }
+                />
+              </FormField>
+              <FormField label="Min Stock Alert (kg) *" id={`inv_min_${productFormGrade}`}>
+                <Input
+                  id={`inv_min_${productFormGrade}`}
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  placeholder="20"
+                  value={form.inventory[productFormGrade].minimum_stock_alert}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      inventory: {
+                        ...f.inventory,
+                        [productFormGrade]: { ...f.inventory[productFormGrade], minimum_stock_alert: e.target.value },
+                      },
+                    }))
+                  }
+                />
+              </FormField>
+            </div>
+
+            {/* Pricing */}
+            <SectionHeading>Pricing</SectionHeading>
+            <div className="grid grid-cols-2 gap-3">
+              <FormField label="Base Price / kg (Rs) *" id={`pr_base_${productFormGrade}`}>
+                <Input
+                  id={`pr_base_${productFormGrade}`}
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  placeholder="0"
+                  value={form.pricing[productFormGrade].base_price_per_kg}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      pricing: { ...f.pricing, [productFormGrade]: { ...f.pricing[productFormGrade], base_price_per_kg: e.target.value } },
+                    }))
+                  }
+                />
+              </FormField>
+              <FormField label="Wholesale Price / kg (Rs) *" id={`pr_ws_${productFormGrade}`}>
+                <Input
+                  id={`pr_ws_${productFormGrade}`}
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  placeholder="0"
+                  value={form.pricing[productFormGrade].wholesale_price_per_kg}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      pricing: { ...f.pricing, [productFormGrade]: { ...f.pricing[productFormGrade], wholesale_price_per_kg: e.target.value } },
+                    }))
+                  }
+                />
+              </FormField>
+              <FormField label="Retail Price / kg (Rs) *" id={`pr_rt_${productFormGrade}`}>
+                <Input
+                  id={`pr_rt_${productFormGrade}`}
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  placeholder="0"
+                  value={form.pricing[productFormGrade].retail_price_per_kg}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      pricing: { ...f.pricing, [productFormGrade]: { ...f.pricing[productFormGrade], retail_price_per_kg: e.target.value } },
+                    }))
+                  }
+                />
+              </FormField>
+              <FormField label="Min Order (kg) *" id={`pr_mo_${productFormGrade}`}>
+                <Input
+                  id={`pr_mo_${productFormGrade}`}
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  placeholder="10"
+                  value={form.pricing[productFormGrade].minimum_order_kg}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      pricing: { ...f.pricing, [productFormGrade]: { ...f.pricing[productFormGrade], minimum_order_kg: e.target.value } },
+                    }))
+                  }
+                />
+              </FormField>
+              {/* <FormField label="Effective From" id={`pr_ef_${productFormGrade}`}>
+                <Input
+                  id={`pr_ef_${productFormGrade}`}
+                  type="date"
+                  value={form.pricing[productFormGrade].effective_from}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      pricing: { ...f.pricing, [productFormGrade]: { ...f.pricing[productFormGrade], effective_from: e.target.value } },
+                    }))
+                  }
+                />
+              </FormField>
+              <FormField label="Effective To" id={`pr_et_${productFormGrade}`}>
+                <Input
+                  id={`pr_et_${productFormGrade}`}
+                  type="date"
+                  value={form.pricing[productFormGrade].effective_to}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      pricing: { ...f.pricing, [productFormGrade]: { ...f.pricing[productFormGrade], effective_to: e.target.value } },
+                    }))
+                  }
+                />
+              </FormField> */}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Footer */}
+      <DialogFooter className="px-5 py-3 border-t shrink-0 gap-2">
+        {!editTarget ? (
+          productFormTab === "details" ? (
+            <>
+              <Button type="button" variant="outline" onClick={() => setSheetOpen(false)} disabled={saving}>
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={() => {
+                  // Validate tab 1 before advancing
+                  if (!form.category_id) { toast.error("Category is required"); return; }
+                  if (!form.product_name.trim()) { toast.error("Product name is required"); return; }
+                  if (!form.product_code.trim()) { toast.error("Product code is required"); return; }
+                  if (!imageFile) { toast.error("Product image is required"); return; }
+                  setProductFormTab("inventory");
+                }}
+              >
+                Next
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button type="button" variant="outline" onClick={() => setProductFormTab("details")} disabled={saving}>
+                Previous
+              </Button>
+              <Button type="submit" disabled={saving}>
+                {saving ? "Saving..." : "Create Product"}
+              </Button>
+            </>
+          )
+        ) : (
+          <>
+            <Button type="button" variant="outline" onClick={() => setSheetOpen(false)} disabled={saving}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={saving}>
+              {saving ? "Saving..." : "Save Changes"}
+            </Button>
+          </>
+        )}
+      </DialogFooter>
+    </form>
+  </DialogContent>
+</Dialog>
 
       {/* ════════════════════════════════════════════════════════════════════
           STOCK ADJUSTMENT SHEET  (lifted from InventoryTab)
@@ -1430,9 +1831,9 @@ const handleDelete = async () => {
                   <Input id="adj_ref_id" type="number" placeholder="Reference record ID" value={adjustForm.reference_id} onChange={(e) => setAdjustForm((f) => ({ ...f, reference_id: e.target.value }))} />
                 </FormField>
               )}
-              <FormField label="Warehouse Location" id="adj_wh">
+              {/* <FormField label="Warehouse Location" id="adj_wh">
                 <Input id="adj_wh" placeholder="e.g. Rack-1" value={adjustForm.warehouse_location} onChange={(e) => setAdjustForm((f) => ({ ...f, warehouse_location: e.target.value }))} />
-              </FormField>
+              </FormField> */}
               <FormField label="Min Stock Alert (kg)" id="adj_min">
                 <Input id="adj_min" type="number" min={0} step="0.01" placeholder="Leave blank to keep current" value={adjustForm.minimum_stock_alert} onChange={(e) => setAdjustForm((f) => ({ ...f, minimum_stock_alert: e.target.value }))} />
               </FormField>
@@ -1532,18 +1933,18 @@ const handleDelete = async () => {
             <FormField label="Wholesale Price / kg (Rs) *" id="pr_ws">
               <Input id="pr_ws" type="number" min={0} step="0.01" placeholder="0.00" value={pricingForm.wholesale_price_per_kg} onChange={(e) => setPricingForm((f) => ({ ...f, wholesale_price_per_kg: e.target.value }))} required />
             </FormField>
-            <FormField label="Retail Price / kg (Rs)" id="pr_rt">
-              <Input id="pr_rt" type="number" min={0} step="0.01" placeholder="0.00" value={pricingForm.retail_price_per_kg} onChange={(e) => setPricingForm((f) => ({ ...f, retail_price_per_kg: e.target.value }))} />
+            <FormField label="Retail Price / kg (Rs) *" id="pr_rt">
+              <Input id="pr_rt" type="number" min={0} step="0.01" placeholder="0.00" value={pricingForm.retail_price_per_kg} onChange={(e) => setPricingForm((f) => ({ ...f, retail_price_per_kg: e.target.value }))} required />
             </FormField>
             <FormField label="Min Order (kg)" id="pr_mo">
               <Input id="pr_mo" type="number" min={0} step="0.01" placeholder="10" value={pricingForm.minimum_order_kg} onChange={(e) => setPricingForm((f) => ({ ...f, minimum_order_kg: e.target.value }))} />
             </FormField>
-            <FormField label="Effective From *" id="pr_ef">
+            {/* <FormField label="Effective From *" id="pr_ef">
               <Input id="pr_ef" type="date" value={pricingForm.effective_from} onChange={(e) => setPricingForm((f) => ({ ...f, effective_from: e.target.value }))} required />
             </FormField>
             <FormField label="Effective To" id="pr_et">
               <Input id="pr_et" type="date" value={pricingForm.effective_to} onChange={(e) => setPricingForm((f) => ({ ...f, effective_to: e.target.value }))} />
-            </FormField>
+            </FormField> */}
             <SheetFooter className="pt-4 gap-2">
               <Button type="button" variant="outline" onClick={() => setPricingSheetOpen(false)} disabled={pricingSaving}>Cancel</Button>
               <Button type="submit" disabled={pricingSaving}>{pricingSaving ? "Saving..." : "Add Pricing"}</Button>
@@ -1577,6 +1978,22 @@ const handleDelete = async () => {
     </DialogFooter>
   </DialogContent>
 </Dialog>
+
+{/* ════════════════════════════════════════════════════════════════════
+    EDIT INVENTORY & PRICING DIALOG
+════════════════════════════════════════════════════════════════════ */}
+<EditInventoryPricingDialog
+  open={editInvPriceOpen}
+  onOpenChange={setEditInvPriceOpen}
+  product={editInvPriceProduct}
+  onSuccess={async () => {
+    fetchProducts();
+    fetchLowStock();
+    if (editInvPriceProduct?.product_id) {
+      await refreshExpandedRow(editInvPriceProduct.product_id);
+    }
+  }}
+/>
     </>
   );
 }
@@ -1593,6 +2010,7 @@ interface ProductAccordionContentProps {
   onViewHistory: (grade: Grade) => void;
   onAddPricing: () => void;
   onDeletePricing: (pricingId: number) => void;
+  onEditInvPrice: () => void;
 }
 
 function ProductAccordionContent({
@@ -1602,6 +2020,7 @@ function ProductAccordionContent({
   onViewHistory,
   onAddPricing,
   onDeletePricing,
+  onEditInvPrice
 }: ProductAccordionContentProps) {
   return (
     <div className="px-4 py-5 grid grid-cols-2 gap-6">
@@ -1611,14 +2030,14 @@ function ProductAccordionContent({
           <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
             Inventory by Grade
           </p>
-          <Button
+          {/* <Button
             size="sm"
             variant="outline"
             className="text-xs h-7 px-2"
             onClick={(e) => { e.stopPropagation(); onAdjustStock("A"); }}
           >
             <IconRefresh className="mr-1 size-3" /> Adjust Stock
-          </Button>
+          </Button> */}
         </div>
 
         <div className="space-y-2">
@@ -1649,10 +2068,10 @@ function ProductAccordionContent({
                         {formatKg(inv.minimum_stock_alert)}
                       </span>
                     </div>
-                    <div className="flex justify-between">
+                    {/* <div className="flex justify-between">
                       <span>Location</span>
                       <span className="font-medium text-foreground">{inv.warehouse_location ?? "--"}</span>
-                    </div>
+                    </div> */}
                     <div className="flex justify-between">
                       <span>Last Restocked</span>
                       <span className="font-medium text-foreground">{formatDate(inv.last_restocked_at)}</span>
@@ -1689,14 +2108,14 @@ function ProductAccordionContent({
           <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
             Pricing by Grade
           </p>
-          <Button
+         {/* <Button
             size="sm"
             variant="outline"
             className="text-xs h-7 px-2"
-            onClick={(e) => { e.stopPropagation(); onAddPricing(); }}
+            onClick={(e) => { e.stopPropagation(); onEditInvPrice(); }}
           >
-            <IconPlus className="mr-1 size-3" /> Add Pricing
-          </Button>
+            <IconEdit className="mr-1 size-3" /> Edit Inventory & Pricing
+          </Button> */}
         </div>
 
         <div className="space-y-2">
@@ -1710,7 +2129,16 @@ function ProductAccordionContent({
                     <GradeBadge grade={pr.grade} />
                     <StatusBadge active={pr.is_active} />
                   </div>
-                  <Button
+                  <div className="flex items-center gap-2">
+            <Button
+            size="sm"
+            variant="outline"
+            className="text-xs h-7 px-2"
+            onClick={(e) => { e.stopPropagation(); onAddPricing(); }}
+          >
+            <IconEdit className="mr-1 size-3" /> Edit Pricing
+          </Button>
+                        {/* <Button
                     variant="ghost"
                     size="icon"
                     className="size-7 text-red-500 hover:text-red-600"
@@ -1718,9 +2146,11 @@ function ProductAccordionContent({
                     onClick={(e) => { e.stopPropagation(); onDeletePricing(pr.pricing_id); }}
                   >
                     <IconTrash className="size-3.5" />
-                  </Button>
+                  </Button> */}
+                  </div>
+                 
                 </div>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm text-muted-foreground">
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm text-muted-foreground border-b ">
                   <div className="flex justify-between">
                     <span>Base Price</span>
                     <span className="font-semibold text-foreground">{formatRs(pr.base_price_per_kg)}/kg</span>
@@ -1737,13 +2167,13 @@ function ProductAccordionContent({
                     <span>Min Order</span>
                     <span className="font-semibold text-foreground">{formatKg(pr.minimum_order_kg)}</span>
                   </div>
-                  <div className="flex justify-between col-span-2">
+                  {/* <div className="flex justify-between col-span-2 ">
                     <span>Effective</span>
                     <span className="font-medium text-foreground">
                       {formatDate(pr.effective_from)} → {pr.effective_to ? formatDate(pr.effective_to) : "Ongoing"}
                     </span>
-                  </div>
-                </div>
+                  </div> */}
+                </div>    
               </div>
             ))
           )}
@@ -1769,6 +2199,331 @@ function StatusBadge({ active }: { active: boolean }) {
     >
       {active ? "Active" : "Inactive"}
     </Badge>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// EDIT INVENTORY & PRICING DIALOG
+// Per-grade dialog for updating both inventory quantities and pricing
+// ═══════════════════════════════════════════════════════════════════════════════
+
+interface EditInventoryPricingDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  product: any;
+  onSuccess: () => void;
+}
+
+function EditInventoryPricingDialog({
+  open,
+  onOpenChange,
+  product,
+  onSuccess,
+}: EditInventoryPricingDialogProps) {
+  const [activeGrade, setActiveGrade] = useState<Grade>("A");
+  const [saving, setSaving] = useState(false);
+
+  // Per-grade form state
+  const emptyGradeForm = () => ({
+    // Inventory
+    quantity_kg: "",
+    minimum_stock_alert: "",
+    // Pricing
+    base_price_per_kg: "",
+    wholesale_price_per_kg: "",
+    retail_price_per_kg: "",
+    minimum_order_kg: "10",
+    effective_from: new Date().toISOString().split("T")[0],
+    effective_to: "",
+  });
+
+  const [gradeData, setGradeData] = useState
+  <Record<Grade, ReturnType<typeof emptyGradeForm>>
+>({ A: emptyGradeForm(), B: emptyGradeForm(), C: emptyGradeForm() });
+
+  // Seed form from existing product data when dialog opens
+  useEffect(() => {
+    if (!open || !product) return;
+    const next: Record<Grade, ReturnType<typeof emptyGradeForm>> = {
+      A: emptyGradeForm(),
+      B: emptyGradeForm(),
+      C: emptyGradeForm(),
+    };
+    GRADES.forEach((g) => {
+      const inv = product.inventory?.find((i: any) => i.grade === g);
+      const pr = product.pricing
+        ?.filter((p: any) => p.grade === g && p.is_active)
+        ?.sort((a: any, b: any) =>
+          new Date(b.effective_from).getTime() - new Date(a.effective_from).getTime()
+        )?.[0];
+
+      if (inv) {
+        next[g].quantity_kg = inv.available_quantity_kg != null ? String(inv.available_quantity_kg) : "";
+        next[g].minimum_stock_alert = inv.minimum_stock_alert != null ? String(inv.minimum_stock_alert) : "";
+      }
+      if (pr) {
+        next[g].base_price_per_kg = pr.base_price_per_kg != null ? String(pr.base_price_per_kg) : "";
+        next[g].wholesale_price_per_kg = pr.wholesale_price_per_kg != null ? String(pr.wholesale_price_per_kg) : "";
+        next[g].retail_price_per_kg = pr.retail_price_per_kg != null ? String(pr.retail_price_per_kg) : "";
+        next[g].minimum_order_kg = pr.minimum_order_kg != null ? String(pr.minimum_order_kg) : "10";
+        next[g].effective_from = new Date().toISOString().split("T")[0];
+        next[g].effective_to = "";
+      }
+    });
+    setGradeData(next);
+    setActiveGrade("A");
+  }, [open, product]);
+
+  const setField = (grade: Grade, field: string, value: string) => {
+    setGradeData((prev) => ({
+      ...prev,
+      [grade]: { ...prev[grade], [field]: value },
+    }));
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
+      e.preventDefault();
+  if (!product) return;
+
+  // ── NEW: Validate retail price when pricing is being updated ──
+  const missingRetailGrade = GRADES.find((g) => {
+    const item = gradeData[g];
+    // If base price (and thus a pricing update) is provided, retail is required
+    return item.base_price_per_kg !== "" && item.retail_price_per_kg === "";
+  });
+  if (missingRetailGrade) {
+    toast.error(`Retail price is required for Grade ${missingRetailGrade}`);
+    setActiveGrade(missingRetailGrade);
+    return;
+  }
+    setSaving(true);
+
+    try {
+      const promises: Promise<any>[] = [];
+
+      for (const g of GRADES) {
+        const d = gradeData[g];
+        const inv = product.inventory?.find((i: any) => i.grade === g);
+        const activePricing = product.pricing
+          ?.filter((p: any) => p.grade === g && p.is_active)
+          ?.sort((a: any, b: any) =>
+            new Date(b.effective_from).getTime() - new Date(a.effective_from).getTime()
+          )?.[0];
+
+        // ── Inventory: patch if record exists and quantity changed ──
+        if (inv && d.quantity_kg !== "") {
+          const body: any = {
+            transaction_type: "adjustment",
+            quantity_kg: Number(d.quantity_kg),
+            reference_type: "manual",
+          };
+          if (d.minimum_stock_alert !== "") {
+            body.minimum_stock_alert = Number(d.minimum_stock_alert);
+          }
+          promises.push(api.patch(`/admin/inventory/${inv.inventory_id}`, body));
+        }
+
+        // ── Pricing: add new entry if base price + effective_from filled ──
+        if (d.base_price_per_kg && d.effective_from) {
+          const pricingBody: any = {
+            product_id: product.product_id,
+            grade: g,
+            base_price_per_kg: Number(d.base_price_per_kg),
+            wholesale_price_per_kg: Number(d.wholesale_price_per_kg),
+            retail_price_per_kg: Number(d.retail_price_per_kg),
+            minimum_order_kg: Number(d.minimum_order_kg) || 10,
+            effective_from: d.effective_from,
+          };
+          // if (d.retail_price_per_kg) pricingBody.retail_price_per_kg = Number(d.retail_price_per_kg);
+          if (d.effective_to) pricingBody.effective_to = d.effective_to;
+
+          // If there's already an active pricing entry for this grade and same effective_from, skip duplicate
+          const isSameEntry =
+            activePricing &&
+            activePricing.effective_from?.split("T")[0] === d.effective_from &&
+            String(activePricing.base_price_per_kg) === d.base_price_per_kg;
+
+          if (!isSameEntry) {
+            promises.push(api.post("/admin/pricing", pricingBody));
+          }
+        }
+      }
+
+      await Promise.all(promises);
+      toast.success("Inventory & pricing updated successfully");
+      onOpenChange(false);
+      onSuccess();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message ?? "Failed to save changes");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const gradeTabStyle: Record<Grade, string> = {
+    A: "bg-emerald-50 text-emerald-800 border-emerald-300",
+    B: "bg-sky-50 text-sky-800 border-sky-300",
+    C: "bg-amber-50 text-amber-800 border-amber-300",
+  };
+  const gradeTabInactive = "bg-muted/40 text-muted-foreground border-transparent hover:bg-muted/70";
+
+  const d = gradeData[activeGrade];
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[540px] max-h-[90vh] flex flex-col gap-0 p-0 overflow-hidden">
+        {/* Header */}
+        <DialogHeader className="px-5 pt-5 pb-3 border-b shrink-0">
+          <DialogTitle className="flex items-center gap-2 text-base">
+            <IconEdit className="size-4 text-muted-foreground" />
+            Edit Inventory &amp; Pricing
+          </DialogTitle>
+          <DialogDescription className="text-xs mt-0.5">
+            {product?.product_name} · Update per-grade inventory quantities and pricing.
+          </DialogDescription>
+        </DialogHeader>
+
+        <form onSubmit={handleSave} className="flex flex-col min-h-0 flex-1">
+          {/* Scrollable body */}
+          <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+            {/* Grade Tabs */}
+            <div className="flex gap-2">
+              {GRADES.map((g) => (
+                <button
+                  key={g}
+                  type="button"
+                  onClick={() => setActiveGrade(g)}
+                  className={`flex-1 py-1.5 rounded-lg border text-sm font-medium transition-colors cursor-pointer ${
+                    activeGrade === g ? gradeTabStyle[g] : gradeTabInactive
+                  }`}
+                >
+                  Grade {g}
+                </button>
+              ))}
+            </div>
+
+            {/* Grade badge header */}
+            <div className="flex items-center gap-2">
+              <GradeBadge grade={activeGrade} />
+              {product?.inventory?.find((i: any) => i.grade === activeGrade) ? (
+                <span className="text-xs text-muted-foreground">
+                  Current stock: {formatKg(product.inventory.find((i: any) => i.grade === activeGrade)?.available_quantity_kg)}
+                </span>
+              ) : (
+                <span className="text-xs text-amber-600">No inventory record for this grade</span>
+              )}
+            </div>
+
+            {/* ── Inventory Section ── */}
+            <SectionHeading>Inventory</SectionHeading>
+            <div className="grid grid-cols-2 gap-3">
+              <FormField label="Quantity (kg)" id={`edit_qty_${activeGrade}`}>
+                <Input
+                  id={`edit_qty_${activeGrade}`}
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  placeholder="e.g. 150"
+                  value={d.quantity_kg}
+                  onChange={(e) => setField(activeGrade, "quantity_kg", e.target.value)}
+                />
+              </FormField>
+              <FormField label="Min stock alert (kg)" id={`edit_min_${activeGrade}`}>
+                <Input
+                  id={`edit_min_${activeGrade}`}
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  placeholder="e.g. 20"
+                  value={d.minimum_stock_alert}
+                  onChange={(e) => setField(activeGrade, "minimum_stock_alert", e.target.value)}
+                />
+              </FormField>
+            </div>
+
+            {/* ── Pricing Section ── */}
+            <SectionHeading>Pricing</SectionHeading>
+            <div className="grid grid-cols-2 gap-3">
+              <FormField label="Base price / kg (Rs)" id={`edit_base_${activeGrade}`}>
+                <Input
+                  id={`edit_base_${activeGrade}`}
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  placeholder="0.00"
+                  value={d.base_price_per_kg}
+                  onChange={(e) => setField(activeGrade, "base_price_per_kg", e.target.value)}
+                />
+              </FormField>
+              <FormField label="Wholesale price / kg (Rs)" id={`edit_ws_${activeGrade}`}>
+                <Input
+                  id={`edit_ws_${activeGrade}`}
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  placeholder="0.00"
+                  value={d.wholesale_price_per_kg}
+                  onChange={(e) => setField(activeGrade, "wholesale_price_per_kg", e.target.value)}
+                />
+              </FormField>
+              <FormField label="Retail price / kg (Rs) *" id={`edit_rt_${activeGrade}`}>
+                <Input
+                  id={`edit_rt_${activeGrade}`}
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  placeholder="0.00"
+                  value={d.retail_price_per_kg}
+                  onChange={(e) => setField(activeGrade, "retail_price_per_kg", e.target.value)}
+                />
+              </FormField>
+              <FormField label="Min order (kg)" id={`edit_mo_${activeGrade}`}>
+                <Input
+                  id={`edit_mo_${activeGrade}`}
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  placeholder="10"
+                  value={d.minimum_order_kg}
+                  onChange={(e) => setField(activeGrade, "minimum_order_kg", e.target.value)}
+                />
+              </FormField>
+              <FormField label="Effective from" id={`edit_ef_${activeGrade}`}>
+                <Input
+                  id={`edit_ef_${activeGrade}`}
+                  type="date"
+                  value={d.effective_from}
+                  onChange={(e) => setField(activeGrade, "effective_from", e.target.value)}
+                />
+              </FormField>
+              <FormField label="Effective to" id={`edit_et_${activeGrade}`}>
+                <Input
+                  id={`edit_et_${activeGrade}`}
+                  type="date"
+                  value={d.effective_to}
+                  onChange={(e) => setField(activeGrade, "effective_to", e.target.value)}
+                />
+              </FormField>
+            </div>
+          </div>
+
+          {/* Footer */}
+          <DialogFooter className="px-5 py-3 border-t shrink-0 gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={saving}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" disabled={saving}>
+              {saving ? "Saving..." : "Save Changes"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 

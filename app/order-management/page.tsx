@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
+import * as XLSX from "xlsx";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/animate-ui/components/radix/sidebar";
@@ -648,7 +649,7 @@ function OrderDetailSheet({
                 <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
                   <div>
                     <span className="text-muted-foreground block">Order ID</span>
-                    <span className="font-mono font-medium">#{order.order_id}</span>
+                    <span className="font-mono font-medium">#{order.order_number}</span>
                   </div>
                   <div>
                     <span className="text-muted-foreground block">Created</span>
@@ -840,7 +841,7 @@ export default function OrderManagementPage() {
 
       const data = await api.get(`/admin/orders?${params}`);
       setOrders(data.data.data.orders ?? []);
-      setPagination(data.data.pagination);
+      setPagination(data.data.data.pagination??{ total: 0, page: 1, limit: 20, total_pages: 0 });
     } catch (e) {
       toast.error("Failed to fetch orders");
       console.error(e);
@@ -882,6 +883,75 @@ export default function OrderManagementPage() {
     );
   }
 
+ const exportOrdersToExcel = () => {
+  if (!orders?.length) return;
+
+  const excelData = orders.map((order: any, index: number) => ({
+    "S.No": index + 1,
+
+    "Order ID": order.order_number ?? order.order_id,
+
+    Vendor: order.vendor?.shop_name ?? "-",
+
+    "Vendor Phone": order.vendor?.mobile_number ?? "-",
+
+    "Order Date": order.order_date
+      ? new Date(order.order_date).toLocaleDateString()
+      : "-",
+
+    "Order Status":
+      order.order_status
+        ? order.order_status.charAt(0).toUpperCase() +
+          order.order_status.slice(1)
+        : "-",
+
+    Payment:
+      order.payment_status
+        ? order.payment_status.charAt(0).toUpperCase() +
+          order.payment_status.slice(1)
+        : "-",
+
+    Amount: order.final_amount
+      ? `₹${Number(order.final_amount).toLocaleString()}`
+      : "₹0",
+
+    "Expected Delivery": order.expected_delivery_date
+      ? new Date(
+          order.expected_delivery_date
+        ).toLocaleDateString()
+      : "-",
+  }));
+
+  const worksheet = XLSX.utils.json_to_sheet(excelData);
+
+  worksheet["!cols"] = [
+    { wch: 8 },   // S.No
+    { wch: 28 },  // Order ID
+    { wch: 28 },  // Vendor
+    { wch: 18 },  // Vendor Phone
+    { wch: 18 },  // Order Date
+    { wch: 18 },  // Order Status
+    { wch: 15 },  // Payment
+    { wch: 15 },  // Amount
+    { wch: 22 },  // Expected Delivery
+  ];
+
+  const workbook = XLSX.utils.book_new();
+
+  XLSX.utils.book_append_sheet(
+    workbook,
+    worksheet,
+    "Orders Report"
+  );
+
+  XLSX.writeFile(
+    workbook,
+    `orders_report_${new Date()
+      .toISOString()
+      .split("T")[0]}.xlsx`
+  );
+    toast.success(`Exported ${orders.length} order records`);
+};
   return (
     <ProtectedRoute>
       <SidebarProvider
@@ -1000,7 +1070,14 @@ export default function OrderManagementPage() {
                       <SelectItem value="final_amount:asc">Amount ↑</SelectItem>
                     </SelectContent>
                   </Select>
-
+                    <Button
+                    variant="outline"
+                    size="sm"
+                    className="bg-white dark:bg-card hover:border-primary/50"
+                    onClick={exportOrdersToExcel}
+                  >
+                  Export
+                </Button>
                   {/* Reset */}
                   {hasActiveFilters && (
                     <Button variant="outline" size="sm" onClick={handleReset} className="gap-1.5 bg-white dark:bg-card">
@@ -1023,7 +1100,7 @@ export default function OrderManagementPage() {
                 <Table className="min-w-[800px]">
                   <TableHeader>
                     <TableRow className="bg-muted/50 hover:bg-muted/50">
-                      <TableHead className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Order</TableHead>
+                      <TableHead className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Order ID</TableHead>
                       <TableHead className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Vendor</TableHead>
                       <TableHead className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Date</TableHead>
                       <TableHead className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">Order Status</TableHead>
@@ -1098,58 +1175,76 @@ export default function OrderManagementPage() {
               </div>
 
               {/* ── Pagination ── */}
-              {pagination?.total_pages > 1 && (
-                <div className="flex flex-col gap-3 border-t bg-muted/20 p-4 md:flex-row md:items-center md:justify-between">
-                  <span className="text-xs text-muted-foreground">
-                    Showing{" "}
-                    <span className="font-medium text-foreground">
-                      {(page - 1) * 20 + 1}–{Math.min(page * 20, pagination.total)}
-                    </span>{" "}
-                    of{" "}
-                    <span className="font-medium text-foreground">
-                      {pagination.total.toLocaleString("en-IN")}
-                    </span>{" "}
-                    orders
-                  </span>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={page <= 1 || loading}
-                      onClick={() => setPage(p => Math.max(1, p - 1))}
-                      className="w-8 h-8 p-0"
-                    >
-                      <IconChevronLeft className="size-4" />
-                    </Button>
-                    {Array.from({ length: Math.min(5, pagination.total_pages) }, (_, i) => {
-                      const p = i + 1;
-                      return (
-                        <Button
-                          key={p}
-                          size="sm"
-                          variant={p === page ? "default" : "outline"}
-                          onClick={() => setPage(p)}
-                          className="w-8 h-8 p-0 text-sm"
-                        >
-                          {p}
-                        </Button>
-                      );
-                    })}
-                    {pagination.total_pages > 5 && (
-                      <span className="text-xs text-muted-foreground px-1">…</span>
-                    )}
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={page >= pagination.total_pages || loading}
-                      onClick={() => setPage(p => p + 1)}
-                      className="w-8 h-8 p-0"
-                    >
-                      <IconChevronRight className="size-4" />
-                    </Button>
-                  </div>
-                </div>
-              )}
+             {/* ── Pagination ── */}
+{pagination?.total > 0 && (
+  <div className="flex flex-col gap-3 border-t bg-muted/20 p-4 md:flex-row md:items-center md:justify-between">
+    <span className="text-xs text-muted-foreground">
+      Showing{" "}
+      <span className="font-medium text-foreground">
+        {Math.min((page - 1) * 20 + 1, pagination.total)}–{Math.min(page * 20, pagination.total)}
+      </span>{" "}
+      of{" "}
+      <span className="font-medium text-foreground">
+        {pagination.total.toLocaleString("en-IN")}
+      </span>{" "}
+      orders
+    </span>
+
+    {pagination.total_pages > 1 && (
+      <div className="flex items-center gap-1">
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={page <= 1 || loading}
+          onClick={() => setPage(p => Math.max(1, p - 1))}
+          className="w-8 h-8 p-0"
+        >
+          <IconChevronLeft className="size-4" />
+        </Button>
+
+        {(() => {
+          const total = pagination.total_pages;
+          const delta = 2;
+          const pages: (number | "...")[] = [];
+          const left = Math.max(2, page - delta);
+          const right = Math.min(total - 1, page + delta);
+
+          pages.push(1);
+          if (left > 2) pages.push("...");
+          for (let i = left; i <= right; i++) pages.push(i);
+          if (right < total - 1) pages.push("...");
+          if (total > 1) pages.push(total);
+
+          return pages.map((p, i) =>
+            p === "..." ? (
+              <span key={`ellipsis-${i}`} className="text-xs text-muted-foreground px-1">…</span>
+            ) : (
+              <Button
+                key={p}
+                size="sm"
+                variant={p === page ? "default" : "outline"}
+                onClick={() => setPage(p as number)}
+                className="w-8 h-8 p-0 text-sm"
+              >
+                {p}
+              </Button>
+            )
+          );
+        })()}
+
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={page >= pagination.total_pages || loading}
+          onClick={() => setPage(p => p + 1)}
+          className="w-8 h-8 p-0"
+        >
+          <IconChevronRight className="size-4" />
+        </Button>
+      </div>
+    )}
+  </div>
+)}
             </Card>
           </div>
         </SidebarInset>

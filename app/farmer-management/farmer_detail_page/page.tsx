@@ -50,7 +50,6 @@ import ProtectedRoute from "../../routes/ProtectedRoute";
 import api from "@/app/services/api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-
 interface EditForm {
   full_name: string;
   farm_name: string;
@@ -300,10 +299,10 @@ export default function FarmerDetailPage() {
   const [bankLoading, setBankLoading] = useState(false);
   const [bankError, setBankError] = useState("");
 
-  // Land partitions
-  const [partitions, setPartitions] = useState<any[]>([]);
-  const [partitionsLoading, setPartitionsLoading] = useState(false);
-  const [partitionsError, setPartitionsError] = useState("");
+  // Land Segments
+  const [Segments, setSegments] = useState<any[]>([]);
+  const [SegmentsLoading, setSegmentsLoading] = useState(false);
+  const [SegmentsError, setSegmentsError] = useState("");
 
   // ── Fetch profile ──────────────────────────────────────────────────────────
 
@@ -426,32 +425,32 @@ export default function FarmerDetailPage() {
     fetch();
   }, [farmerId]);
 
-  // ── Fetch land partitions ──────────────────────────────────────────────────
+  // ── Fetch Land Segments ──────────────────────────────────────────────────
 
   useEffect(() => {
     if (!farmerId) return;
     const fetch = async () => {
-      setPartitionsLoading(true);
-      setPartitionsError("");
+      setSegmentsLoading(true);
+      setSegmentsError("");
       try {
         const res = await api.get(
           `/admin/farmers/${encodeURIComponent(farmerId)}/land`
         );
         const data = res.data?.data ?? res.data;
-        const list = Array.isArray(data?.partitions)
-          ? data.partitions
-          : Array.isArray(data?.land_partitions)
-          ? data.land_partitions
+      const list = Array.isArray(data?.segments)
+             ? data.segments
+           : Array.isArray(data?.land_segments)
+           ? data.land_segments
           : Array.isArray(data)
-          ? data
-          : [];
-        setPartitions(list);
+           ? data
+           : [];
+        setSegments(list);
       } catch (err: any) {
-        setPartitionsError(
-          err.response?.data?.message || "Failed to fetch land partitions"
+        setSegmentsError(
+          err.response?.data?.message || "Failed to fetch Land Segments"
         );
       } finally {
-        setPartitionsLoading(false);
+        setSegmentsLoading(false);
       }
     };
     fetch();
@@ -597,13 +596,13 @@ export default function FarmerDetailPage() {
     () => normalizeBankDetails(bankDetails),
     [bankDetails]
   );
-  const partitionRows = useMemo(
-    () => partitions.map((p, i) => normalizePartition(p, i)),
-    [partitions]
+  const SegmentRows = useMemo(
+    () => Segments.map((p, i) => normalizeSegment(p, i)),
+    [Segments]
   );
-  const partitionTotals = useMemo(
-    () => sumPartitionArea(partitionRows),
-    [partitionRows]
+  const SegmentTotals = useMemo(
+    () => sumSegmentArea(SegmentRows),
+    [SegmentRows]
   );
 
   const canGoPrevEarnings = earningsPage > 1;
@@ -802,10 +801,10 @@ export default function FarmerDetailPage() {
                                 <IconPhone className="size-4 text-primary/60" />
                                 {normalized.mobile}
                               </span>
-                              <span className="inline-flex items-center gap-1.5">
+                              {/* <span className="inline-flex items-center gap-1.5">
                                 <IconMail className="size-4 text-primary/60" />
                                 {normalized.email}
-                              </span>
+                              </span> */}
                             </div>
                             <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
                               <span className="inline-flex items-center gap-1.5">
@@ -844,7 +843,7 @@ export default function FarmerDetailPage() {
                                   Call
                                 </Button>
                               )}
-                              {normalized.email !== "--" ? (
+                              {/* {normalized.email !== "--" ? (
                                 <Button asChild size="sm" variant="outline">
                                   <a href={`mailto:${normalized.email}`}>
                                     Email
@@ -854,7 +853,7 @@ export default function FarmerDetailPage() {
                                 <Button size="sm" variant="outline" disabled>
                                   Email
                                 </Button>
-                              )}
+                              )} */}
                               {mapUrl ? (
                                 <Button asChild size="sm" variant="outline">
                                   <a href={mapUrl} target="_blank" rel="noreferrer">
@@ -942,10 +941,10 @@ export default function FarmerDetailPage() {
                         />
                       </InfoCard>
                       <InfoCard title="Account Status">
-                        <InfoRow
+                        {/* <InfoRow
                           label="Aadhar Number"
                           value={normalized.aadharNumber}
-                        />
+                        /> */}
                         <InfoRow
                           label="Active"
                           value={normalized.isActive ? "Yes" : "No"}
@@ -992,109 +991,109 @@ export default function FarmerDetailPage() {
                       />
                     </div>
 
-                    {/* Land Partitions */}
+                    {/* Land Segments */}
                     <Card className="border-none ring-1 ring-border shadow-sm bg-white/70 backdrop-blur-sm">
                       <CardHeader className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between border-b bg-muted/30">
                         <div>
                           <CardTitle className="text-sm font-semibold">
-                            Land Partitions
+                            Land Segments
                           </CardTitle>
                           <p className="text-xs text-muted-foreground">
-                            {partitionTotals.totalAreaLabel}
+                            {SegmentTotals.totalAreaLabel}
                           </p>
                         </div>
                         <span className="text-xs uppercase tracking-widest text-muted-foreground">
-                          {partitionRows.length} total
+                          {SegmentRows.length} total
                         </span>
                       </CardHeader>
                       <CardContent className="space-y-3 pt-4">
-                        {partitionsLoading ? (
+                        {SegmentsLoading ? (
                           <p className="text-sm text-muted-foreground">
-                            Loading partitions...
+                            Loading Segments...
                           </p>
-                        ) : partitionsError ? (
+                        ) : SegmentsError ? (
                           <p className="text-sm text-muted-foreground">
-                            {partitionsError}
+                            {SegmentsError}
                           </p>
-                        ) : partitionRows.length === 0 ? (
+                        ) : SegmentRows.length === 0 ? (
                           <p className="text-sm text-muted-foreground">
-                            No land partitions found.
+                            No Land Segments found.
                           </p>
                         ) : (
                           <div className="grid gap-3 md:grid-cols-2">
-                            {partitionRows.map((partition) => (
+                            {SegmentRows.map((Segment) => (
                               <div
-                                key={partition.id}
+                                key={Segment.id}
                                 className="rounded-xl border bg-card p-4 shadow-sm"
                               >
                                 <div className="flex flex-wrap items-center justify-between gap-3">
                                   <div>
                                     <p className="text-xs uppercase tracking-widest text-muted-foreground">
-                                      Partition
+                                      Segment
                                     </p>
                                     <p className="text-lg font-semibold">
-                                      {partition.name}
+                                      {Segment.name}
                                     </p>
                                   </div>
                                   <Badge
                                     variant="outline"
                                     className={
-                                      partition.status === "cultivated"
+                                      Segment.status === "cultivated"
                                         ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                                         : "bg-muted text-muted-foreground border-transparent"
                                     }
                                   >
-                                    {partition.status}
+                                    {Segment.status}
                                   </Badge>
                                 </div>
                                 <div className="mt-3 grid gap-2 text-sm text-muted-foreground">
                                   <div className="flex justify-between">
-                                    <span>Partition ID</span>
+                                    <span>Segment ID</span>
                                     <span className="font-semibold text-foreground">
-                                      {partition.id}
+                                      {Segment.id}
                                     </span>
                                   </div>
                                   <div className="flex justify-between">
                                     <span>Area</span>
                                     <span className="font-semibold text-foreground">
-                                      {partition.areaLabel}
+                                      {Segment.areaLabel}
                                     </span>
                                   </div>
                                   <div className="flex justify-between">
                                     <span>Crop</span>
                                     <span className="font-semibold text-foreground">
-                                      {partition.cropName}
+                                      {Segment.cropName}
                                     </span>
                                   </div>
                                   <div className="flex justify-between">
                                     <span>Planting Date</span>
                                     <span className="font-semibold text-foreground">
-                                      {partition.plantingDate}
+                                      {Segment.plantingDate}
                                     </span>
                                   </div>
                                   <div className="flex justify-between">
                                     <span>Expected Harvest</span>
                                     <span className="font-semibold text-foreground">
-                                      {partition.expectedHarvestDate}
+                                      {Segment.expectedHarvestDate}
                                     </span>
                                   </div>
-                                  <div className="flex justify-between">
+                                  {/* <div className="flex justify-between">
                                     <span>Expected Yield</span>
                                     <span className="font-semibold text-foreground">
-                                      {partition.expectedYield}
+                                      {Segment.expectedYield}
                                     </span>
-                                  </div>
-                                  <div className="flex justify-between">
+                                  </div> */}
+                                  {/* <div className="flex justify-between">
                                     <span>Actual Yield</span>
                                     <span className="font-semibold text-foreground">
-                                      {partition.actualYield}
+                                      {Segment.actualYield}
                                     </span>
                                   </div>
-                                  {partition.notes !== "--" && (
+                                  {Segment.notes !== "--" && (
                                     <div className="mt-1 rounded-lg bg-muted/40 p-2 text-xs">
-                                      {partition.notes}
+                                      {Segment.notes}
                                     </div>
-                                  )}
+                                  )} */}
                                 </div>
                               </div>
                             ))}
@@ -1192,11 +1191,11 @@ export default function FarmerDetailPage() {
                                       {crop.harvestDate}
                                     </span>
                                   </div>
-                                  {crop.partitionName !== "--" && (
+                                  {crop.SegmentName !== "--" && (
                                     <div className="flex justify-between">
-                                      <span>Partition</span>
+                                      <span>Segment</span>
                                       <span className="font-semibold text-foreground">
-                                        {crop.partitionName}
+                                        {crop.SegmentName}
                                       </span>
                                     </div>
                                   )}
@@ -1302,12 +1301,12 @@ export default function FarmerDetailPage() {
                                       {earning.totalAmount}
                                     </span>
                                   </div>
-                                  <div className="flex justify-between">
+                                  {/* <div className="flex justify-between">
                                     <span>Commission</span>
                                     <span className="font-semibold text-foreground">
                                       {earning.commissionAmount}
                                     </span>
-                                  </div>
+                                  </div> */}
                                   <div className="flex justify-between">
                                     <span>Net Amount</span>
                                     <span className="font-semibold text-foreground">
@@ -1369,7 +1368,7 @@ export default function FarmerDetailPage() {
                     </Card>
 
                     {/* Bank Details */}
-                    <Card className="border-none ring-1 ring-border shadow-sm bg-white/70 backdrop-blur-sm">
+                    {/* <Card className="border-none ring-1 ring-border shadow-sm bg-white/70 backdrop-blur-sm">
                       <CardHeader className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between border-b bg-muted/30">
                         <CardTitle className="text-sm font-semibold">
                           Bank Details
@@ -1459,7 +1458,7 @@ export default function FarmerDetailPage() {
                           </div>
                         )}
                       </CardContent>
-                    </Card>
+                    </Card> */}
                   </>
                 )}
               </CardContent>
@@ -1492,13 +1491,13 @@ export default function FarmerDetailPage() {
                 value={editForm.farm_name}
                 onChange={(v) => setEditForm((f) => ({ ...f, farm_name: v }))}
               />
-              <FormField
+              {/* <FormField
                 label="Email"
                 id="email"
                 type="email"
                 value={editForm.email}
                 onChange={(v) => setEditForm((f) => ({ ...f, email: v }))}
-              />
+              /> */}
               <FormField
                 label="Location Address"
                 id="location_address"
@@ -1973,8 +1972,8 @@ function normalizeCrop(raw: any, index: number) {
   const status = raw?.status ?? "--";
   const statusLabel = String(status).replaceAll("_", " ");
   const isReady = Boolean(raw?.is_ready);
-  const partitionName =
-    raw?.partition?.crop_name ?? raw?.partition?.partition_name ?? "--";
+  const SegmentName =
+    raw?.Segment?.crop_name ?? raw?.Segment?.Segment_name ?? "--";
 
   return {
     id: String(id),
@@ -1986,7 +1985,7 @@ function normalizeCrop(raw: any, index: number) {
     status: String(status),
     statusLabel,
     isReady,
-    partitionName,
+    SegmentName,
   };
 }
 
@@ -2065,27 +2064,30 @@ function normalizeBankDetails(raw: any) {
   };
 }
 
-function normalizePartition(raw: any, index: number) {
-  const id = raw?.partition_id ?? raw?.id ?? `partition-${index + 1}`;
-  const name = raw?.crop_name ?? raw?.partition_name ?? raw?.name ?? `Partition ${index + 1}`;
-  const areaValue = toNumber(raw?.partition_size_acres) ?? toNumber(raw?.area) ?? null;
-  const areaLabel = areaValue !== null ? `${areaValue} Acres` : "--";
-  const status = raw?.current_status ?? raw?.status ?? "--";
+function normalizeSegment(raw: any, index: number) {
+   const id = raw?.segment_id ?? `segment-${index + 1}`;
+
+  const name =
+    raw?.crop_name ?? `Segment ${index + 1}`;
+
+  const areaValue = toNumber(raw?.area_value);
+
+  const areaLabel =
+    areaValue !== null
+      ? `${areaValue} ${raw?.area_unit ?? "acres"}`
+      : "--";
+
+  const status = raw?.status ?? "--";
+
   const cropName = raw?.crop_name ?? "--";
-  const plantingDate = raw?.planting_date
-    ? formatDateOnly(new Date(raw.planting_date))
+
+  const plantingDate = raw?.plantation_date
+    ? formatDateOnly(new Date(raw.plantation_date))
     : "--";
-  const expectedHarvestDate = raw?.expected_harvest_date
-    ? formatDateOnly(new Date(raw.expected_harvest_date))
+
+  const expectedHarvestDate = raw?.harvesting_date
+    ? formatDateOnly(new Date(raw.harvesting_date))
     : "--";
-  const actualHarvestDate = raw?.actual_harvest_date
-    ? formatDateOnly(new Date(raw.actual_harvest_date))
-    : "--";
-  const expectedYield =
-    raw?.expected_yield_kg != null ? `${raw.expected_yield_kg} kg` : "--";
-  const actualYield =
-    raw?.actual_yield_kg != null ? `${raw.actual_yield_kg} kg` : "--";
-  const notes = raw?.notes ?? "--";
 
   return {
     id: String(id),
@@ -2096,19 +2098,16 @@ function normalizePartition(raw: any, index: number) {
     cropName,
     plantingDate,
     expectedHarvestDate,
-    actualHarvestDate,
-    expectedYield,
-    actualYield,
-    notes,
   };
 }
 
-function sumPartitionArea(
-  partitions: Array<{ areaValue: number | null }>
+
+function sumSegmentArea(
+  Segments: Array<{ areaValue: number | null }>
 ): { totalArea: number | null; totalAreaLabel: string } {
-  if (!partitions.length)
+  if (!Segments.length)
     return { totalArea: null, totalAreaLabel: "Total Area --" };
-  const values = partitions
+  const values = Segments
     .map((p) => p.areaValue)
     .filter((v): v is number => v !== null);
   if (!values.length)

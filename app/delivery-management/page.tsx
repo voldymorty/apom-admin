@@ -57,7 +57,7 @@ import { Label } from "@/components/ui/label";
 import ProtectedRoute from "../routes/ProtectedRoute";
 import api from "@/app/services/api";
 import Link from "next/link";
-
+import * as XLSX from "xlsx";
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 interface AddFormState {
@@ -337,7 +337,99 @@ export default function EmployeeLogisticsManagement() {
   // ── Derived stats from real data ──
   const totalActive = totalItems ?? personnel.filter((p) => p.is_active).length;
   const totalAvailable = personnel.filter((p) => p.is_available).length;
+const exportDeliveryPersonnelToExcel = () => {
+  if (!personnel?.length) return;
 
+  const excelData = personnel.map(
+    (employee: any, index: number) => ({
+      "S.No": index + 1,
+
+      Employee: employee.full_name ?? "-",
+
+      Contact: employee.mobile_number ?? "-",
+
+      Vehicle: employee.vehicle_type ?? "-",
+
+      Status: employee.is_active
+        ? "Active"
+        : "Inactive",
+
+      "Vehicle Type":
+        employee.vehicle_type ?? "-",
+
+      "Vehicle Number":
+        employee.vehicle_number ?? "-",
+
+      "License Number":
+        employee.license_number ?? "-",
+
+      "License Expiry":
+        employee.license_expiry_date
+          ? new Date(
+              employee.license_expiry_date
+            ).toLocaleDateString()
+          : "-",
+
+      "Total Deliveries":
+        employee.total_deliveries ?? 0,
+
+      "Completed Deliveries":
+        employee.completed_deliveries ?? 0,
+
+      "Created At":
+        employee.created_at
+          ? new Date(
+              employee.created_at
+            ).toLocaleString()
+          : "-",
+
+      "Login At":
+        employee.last_login
+          ? new Date(
+              employee.last_login
+            ).toLocaleString()
+          : "-",
+    })
+  );
+
+  const worksheet =
+    XLSX.utils.json_to_sheet(excelData);
+
+  worksheet["!cols"] = [
+    { wch: 8 },
+    { wch: 25 },
+    { wch: 18 },
+    { wch: 15 },
+    { wch: 15 },
+    { wch: 15 },
+    { wch: 18 },
+    { wch: 22 },
+    { wch: 18 },
+    { wch: 18 },
+    { wch: 22 },
+    { wch: 22 },
+    { wch: 22 },
+  ];
+
+  const workbook =
+    XLSX.utils.book_new();
+
+  XLSX.utils.book_append_sheet(
+    workbook,
+    worksheet,
+    "Delivery Personnel"
+  );
+
+  XLSX.writeFile(
+    workbook,
+    `delivery_personnel_${
+      new Date()
+        .toISOString()
+        .split("T")[0]
+    }.xlsx`
+  );
+    toast.success(`Exported ${personnel.length} delivery personnel records`);
+};
   return (
     <ProtectedRoute>
       <SidebarProvider
@@ -432,6 +524,18 @@ export default function EmployeeLogisticsManagement() {
                         </Badge>
                       )}
                     </Button>
+
+                     <Button
+                    variant="outline"
+                    size="sm"
+                    className="bg-white dark:bg-card hover:border-primary/50"
+                    onClick={
+                     exportDeliveryPersonnelToExcel
+                    }
+                  >
+                  Export
+                </Button>
+
                     {activeFilterCount > 0 && (
                       <Button
                         variant="ghost"
@@ -557,7 +661,6 @@ export default function EmployeeLogisticsManagement() {
                     <TableHead className="w-[180px]">Employee</TableHead>
                     <TableHead>Contact</TableHead>
                     <TableHead>Vehicle</TableHead>
-                    <TableHead>Performance</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
@@ -608,11 +711,6 @@ export default function EmployeeLogisticsManagement() {
                         <TableCell>
                           <div className="flex flex-col gap-0.5">
                             <span className="text-sm font-medium">{person.phone}</span>
-                            {person.email !== "--" && (
-                              <span className="text-xs text-muted-foreground truncate max-w-[180px]">
-                                {person.email}
-                              </span>
-                            )}
                           </div>
                         </TableCell>
 
@@ -630,7 +728,7 @@ export default function EmployeeLogisticsManagement() {
                         </TableCell>
 
                         {/* Performance */}
-                        <TableCell>
+                        {/* <TableCell>
                           <div className="flex flex-col gap-0.5">
                             <span className="text-xs text-muted-foreground">
                               {person.completedDeliveries}/{person.totalDeliveries} deliveries
@@ -639,7 +737,7 @@ export default function EmployeeLogisticsManagement() {
                               ★ {person.rating}
                             </span>
                           </div>
-                        </TableCell>
+                        </TableCell> */}
 
                         {/* Status */}
                         <TableCell>
@@ -812,7 +910,7 @@ export default function EmployeeLogisticsManagement() {
                         required
                       />
                     </div>
-                    <div className="grid gap-2">
+                    {/* <div className="grid gap-2">
                       <Label htmlFor="email">Email</Label>
                       <Input
                         id="email"
@@ -822,7 +920,7 @@ export default function EmployeeLogisticsManagement() {
                         value={addForm.email}
                         onChange={handleAddChange}
                       />
-                    </div>
+                    </div> */}
                     <div className="grid gap-2">
                       <Label htmlFor="password">
                         Password <span className="text-destructive">*</span>

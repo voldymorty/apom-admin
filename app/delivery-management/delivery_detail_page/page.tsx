@@ -292,7 +292,6 @@ export default function DeliveryDetailPage() {
                       <div className="grid gap-3 sm:grid-cols-2">
                         <Field label="Full Name" value={normalized.fullName} />
                         <Field label="Mobile Number" value={normalized.mobile} />
-                        <Field label="Email" value={normalized.email} />
                         <Field label="Last Login" value={normalized.lastLogin} />
                         <Field label="Member Since" value={normalized.createdAt} />
                         <Field label="Last Updated" value={normalized.updatedAt} />
@@ -368,7 +367,7 @@ export default function DeliveryDetailPage() {
                         <MiniStat label="Total" value={normalized.totalDeliveries} />
                         <MiniStat label="Completed" value={normalized.completedDeliveries} />
                         <MiniStat label="Rate" value={normalized.completionRate} highlight />
-                        <MiniStat label="Rating" value={`★ ${normalized.rating}`} highlight />
+                        
                       </div>
                     </SectionCard>
 

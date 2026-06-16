@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import * as XLSX from "xlsx";
+
 import Link from "next/link";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
@@ -60,7 +62,7 @@ import { toast } from "sonner";
 import { Label } from "@/components/ui/label";
 import ProtectedRoute from "../routes/ProtectedRoute";
 import api from "@/app/services/api";
-
+import { saveAs } from "file-saver";
 export default function VendorManagement() {
   const [vendors, setVendors] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -76,6 +78,8 @@ export default function VendorManagement() {
   const [sortBy] = useState("created_at");
   const [order] = useState<"asc" | "desc">("desc");
   const [statusUpdatingId, setStatusUpdatingId] = useState<string | null>(null);
+
+
 
   // ── ADDED: status toggle confirmation dialog state ──
   const [statusTarget, setStatusTarget] = useState<{
@@ -228,6 +232,77 @@ export default function VendorManagement() {
     }
   };
 
+  const exportToExcel = () => {
+  if (!vendors?.length) return;
+
+  const excelData = vendors.map((vendor: any, index: number) => ({
+    "S.No": index + 1,
+
+    "Vendor Shop Name": vendor.shop_name ?? "-",
+
+    Manager: vendor.owner_name ?? "-",
+
+    State: vendor.state_info?.state_name ?? "-",
+
+    District: vendor.district_info?.district_name ?? "-",
+
+    City: vendor.city_info?.city_name ?? "-",
+
+    Type: vendor.business_type ?? "-",
+
+    Status: vendor.user?.is_active ? "Active" : "Inactive",
+
+    Orders: vendor.total_orders ?? 0,
+
+    "Phone Number": vendor.user?.mobile_number ?? "-",
+
+    "GST Number": vendor.gst_number ?? "-",
+
+    "Primary Address": vendor.primary_address ?? "-",
+
+    Pincode: vendor.pincode ?? "-",
+
+    "Created At": vendor.created_at
+      ? new Date(vendor.created_at).toLocaleString()
+      : "-",
+  }));
+
+  const worksheet = XLSX.utils.json_to_sheet(excelData);
+
+  worksheet["!cols"] = [
+    { wch: 8 },   // S.No
+    { wch: 30 },  // Shop
+    { wch: 22 },  // Manager
+    { wch: 18 },  // State
+    { wch: 20 },  // District
+    { wch: 18 },  // City
+    { wch: 15 },  // Type
+    { wch: 15 },  // Status
+    { wch: 12 },  // Orders
+    { wch: 18 },  // Phone
+    { wch: 20 },  // GST
+    { wch: 45 },  // Address
+    { wch: 14 },  // Pincode
+    { wch: 22 },  // Created
+  ];
+
+  const workbook = XLSX.utils.book_new();
+
+  XLSX.utils.book_append_sheet(
+    workbook,
+    worksheet,
+    "Vendor Report"
+  );
+
+  XLSX.writeFile(
+    workbook,
+    `vendor_report_${new Date()
+      .toISOString()
+      .split("T")[0]}.xlsx`
+  );
+    toast.success(`Exported ${vendors.length} vendor records`);
+};
+
   return (
     <ProtectedRoute>
       <SidebarProvider
@@ -354,10 +429,8 @@ export default function VendorManagement() {
                     variant="outline"
                     size="sm"
                     className="bg-white dark:bg-card hover:border-primary/50"
-                    onClick={() =>
-                      toast.info("Exporting records...", {
-                        description: "Vendor report generated.",
-                      })
+                    onClick={
+                     exportToExcel
                     }
                   >
                   Export
@@ -373,7 +446,7 @@ export default function VendorManagement() {
                         S.No
                       </TableHead>
                       <TableHead className="w-[200px] px-4 py-3 text-xs font-semibold uppercase tracking-wide">
-                        Vendor
+                        Vendor Shop Name
                       </TableHead>
                       <TableHead className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">
                         Manager

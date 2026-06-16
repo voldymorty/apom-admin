@@ -2,7 +2,7 @@
 import axios from "axios";
 
 export const baseURL = "http://172.16.0.227:5000/api";
-
+export const imageBaseURL = "http://172.16.0.227:5000";
 const api = axios.create({
   baseURL: baseURL,
 });

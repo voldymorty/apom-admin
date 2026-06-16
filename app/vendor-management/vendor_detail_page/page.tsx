@@ -226,7 +226,7 @@ export default function VendorDetailPage() {
                       <InfoRow label="Shop Name" value={normalized.shopName} />
                       <InfoRow label="Owner Name" value={normalized.ownerName} />
                       <InfoRow label="Mobile" value={normalized.mobile} />
-                      <InfoRow label="Email" value={normalized.email} />
+                     
                       <InfoRow label="Business Type" value={normalized.businessType} />
                       <InfoRow label="GST Number" value={normalized.gstNumber} />
                       <InfoRow label="Address" value={normalized.address} />
@@ -325,7 +325,7 @@ export default function VendorDetailPage() {
                         <TableHead>Order</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Payment</TableHead>
-                        <TableHead>Items</TableHead>
+                        {/* <TableHead>Items</TableHead> */}
                         <TableHead className="text-right">Amount</TableHead>
                         <TableHead className="text-right">Date</TableHead>
                       </TableRow>
@@ -343,7 +343,7 @@ export default function VendorDetailPage() {
                           </TableCell>
                           <TableCell className="text-sm text-muted-foreground">{order.orderStatus}</TableCell>
                           <TableCell className="text-sm text-muted-foreground">{order.paymentStatus}</TableCell>
-                          <TableCell className="text-sm text-muted-foreground">{order.itemsCount}</TableCell>
+                          {/* <TableCell className="text-sm text-muted-foreground">{order.itemsCount}</TableCell> */}
                           <TableCell className="text-right font-semibold text-foreground">{order.finalAmount}</TableCell>
                           <TableCell className="text-right text-sm text-muted-foreground">{order.orderDate}</TableCell>
                         </TableRow>

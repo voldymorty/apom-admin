@@ -42,7 +42,15 @@ export default function Page() {
   //     </div>
   //   );
   // }
+//  const totalQuantity = data?.procurementChart.reduce(
+//   (sum: number, item: any) => sum + Number(item.total_quantity_kg),
+//   0
+// );
 
+// const totalCompletedPickups = data?.procurementChart.reduce(
+//   (sum: number, item: any) => sum + Number(item.completed_pickups),
+//   0
+// );
   return (
     <ProtectedRoute>
       <SidebarProvider
@@ -85,7 +93,7 @@ export default function Page() {
                 )}
 
                 {/* ── KPI cards ── */}
-                <SectionCards summary={data?.summary}  />
+                <SectionCards summary={data?.summary} />
 
                 {/* ── Main chart: orders / revenue ── */}
                 <div className="px-4 lg:px-6">
@@ -106,9 +114,9 @@ export default function Page() {
                 </div>
 
                 {/* ── Daily reports table ── */}
-                <DataTable
+                {/* <DataTable
                   reports={data?.dailyReports?.reports ?? []}
-                />
+                /> */}
 
               </div>
             </div>
