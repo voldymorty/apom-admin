@@ -85,7 +85,16 @@ function StatPill({ icon: Icon, value, label, color = "muted" }) {
 }
 
 // Old-style plain text footer card (unchanged)
-function StatCard({ icon: Icon, label, value, badgeText, footerMain, footerSub, loading, warn }) {
+function StatCard({ icon: Icon, label, value, badgeText, footerMain, footerSub, loading, warn }: {
+  icon: any;
+  label: any;
+  value: any;
+  badgeText: any;
+  footerMain: any;
+  footerSub: any;
+  loading: any;
+  warn?: boolean;
+}) {
   if (loading) {
     return (
       <Card className="@container/card">
@@ -137,7 +146,16 @@ function StatCard({ icon: Icon, label, value, badgeText, footerMain, footerSub, 
 }
 
 // New pill-based footer card (Deliveries, Revenue, Orders only)
-function StatCardPills({ icon: Icon, label, value, badgeText, footerMain, footerStats, loading, warn }) {
+function StatCardPills({ icon: Icon, label, value, badgeText, footerMain, footerStats, loading, warn, }:{
+  icon: any;
+  label: any;
+  value: any;
+  badgeText: any;
+  footerMain: any;
+  footerStats?: any[];
+  loading: any;
+  warn?: boolean;
+}) {
   if (loading) {
     return (
       <Card className="@container/card">

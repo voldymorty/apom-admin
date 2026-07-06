@@ -328,7 +328,7 @@ function Highlight<T extends React.ElementType = 'div'>({
           ? render(children)
           : render(
               React.Children.map(children, (child, index) => (
-                <HighlightItem key={index} className={props?.itemsClassName}>
+                <HighlightItem key={index} className={(props as any)?.itemsClassName}>
                   {child}
                 </HighlightItem>
               )),

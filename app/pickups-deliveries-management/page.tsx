@@ -67,6 +67,7 @@ import {
   IconCheck,
   IconClockHour4,
   IconCurrencyRupee,
+  IconMaximize,
 } from "@tabler/icons-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -448,11 +449,14 @@ function CreateTaskDialog({ open, onOpenChange, defaultType, onCreated }: {
   const [selectedDeliveryPerson, setSelectedDeliveryPerson] = useState<SearchSelectOption | null>(null);
   const [selectedVendor, setSelectedVendor] = useState<SearchSelectOption | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<SearchSelectOption | null>(null);
+  const [selectedFarmer, setSelectedFarmer] = useState<SearchSelectOption | null>(null);
+const [selectedCrop, setSelectedCrop] = useState<SearchSelectOption | null>(null);
 
   useEffect(() => {
-    if (open) { setForm({ ...DEFAULT_FORM, delivery_type: defaultType }); setSelectedDeliveryPerson(null); setSelectedVendor(null); setSelectedOrder(null); }
+    if (open) { setForm({ ...DEFAULT_FORM, delivery_type: defaultType }); setSelectedDeliveryPerson(null); setSelectedVendor(null); setSelectedOrder(null);setSelectedFarmer(null);
+    setSelectedCrop(null); }
   }, [open, defaultType]);
-
+useEffect(() => { setSelectedCrop(null); }, [selectedFarmer]);
   const set = (k: keyof CreateTaskForm, v: string) => setForm((prev) => ({ ...prev, [k]: v }));
 
   const fetchDeliveryPersons = useCallback(async (query: string) => {
@@ -475,6 +479,32 @@ function CreateTaskDialog({ open, onOpenChange, defaultType, onCreated }: {
     const list: Record<string, unknown>[] = raw?.orders ?? (Array.isArray(raw) ? raw : []);
     return list.map((o) => ({ id: o.order_id as number, label: o.order_number as string, sublabel: `₹${o.final_amount ?? "—"} · ${o.order_status ?? ""}` }));
   }, []);
+
+  const fetchFarmers = useCallback(async (query: string) => {
+  const res = await api.get(`/admin/farmers?search=${encodeURIComponent(query)}&limit=20`);
+  const raw = res.data?.data;
+  const list: Record<string, unknown>[] = raw?.farmers ?? (Array.isArray(raw) ? raw : []);
+  return list.map((f) => ({
+    id: f.farmer_id as number,
+    label: f.full_name as string,
+    sublabel: (f.mobile_number as string) ?? (f.village as string) ?? undefined,
+  }));
+}, []);
+
+const fetchCrops = useCallback(async (query: string) => {
+  if (!selectedFarmer?.id) return [];
+  const res = await api.get(`/admin/crops?farmer_id=${selectedFarmer.id}&search=${encodeURIComponent(query)}&limit=20`);
+  const raw = res.data?.data;
+  const list: Record<string, unknown>[] = raw?.crops ?? (Array.isArray(raw) ? raw : []);
+  return list.map((c) => {
+    const product = c.product as { product_name?: string } | undefined;
+    return {
+      id: c.crop_id as number,
+      label: product?.product_name ?? `Crop #${c.crop_id}`,
+      sublabel: `Grade ${c.grade ?? "—"} · ${c.quantity_kg ?? "—"} kg`,
+    };
+  });
+}, [selectedFarmer]);
 
   const handleSubmit = async () => {
     if (!form.pickup_address || !form.pickup_contact_name || !form.pickup_contact_number || !selectedDeliveryPerson?.id || !form.scheduled_date || !form.scheduled_time_slot) {
@@ -517,12 +547,29 @@ function CreateTaskDialog({ open, onOpenChange, defaultType, onCreated }: {
               ))}
             </div>
           </FormField>
-          {form.delivery_type === "pickup" && (
-            <div className="grid grid-cols-2 gap-3">
-              <FormField label="Farmer ID" id="farmer_id"><Input id="farmer_id" placeholder="e.g. 1" value={form.farmer_id} onChange={(e) => set("farmer_id", e.target.value)} /></FormField>
-              <FormField label="Crop ID" id="crop_id"><Input id="crop_id" placeholder="e.g. 5" value={form.crop_id} onChange={(e) => set("crop_id", e.target.value)} /></FormField>
-            </div>
-          )}
+         {form.delivery_type === "pickup" && (
+  <div className="grid grid-cols-2 gap-3">
+    <FormField label="Farmer" id="farmer_id">
+      <SearchSelect
+        id="farmer_id"
+        placeholder="Search farmer name…"
+        value={selectedFarmer}
+        onChange={setSelectedFarmer}
+        fetchOptions={fetchFarmers}
+/>
+    </FormField>
+    <FormField label="Crop" id="crop_id">
+      <SearchSelect
+        id="crop_id"
+        placeholder={selectedFarmer ? "Search crop…" : "Select a farmer first"}
+        value={selectedCrop}
+        onChange={setSelectedCrop}
+        fetchOptions={fetchCrops}
+        disabled={!selectedFarmer}
+      />
+    </FormField>
+  </div>
+)}
           {form.delivery_type === "delivery" && (
             <div className="grid grid-cols-2 gap-3">
               <FormField label="Order" id="order_id"><SearchSelect id="order_id" placeholder="Search order number…" value={selectedOrder} onChange={setSelectedOrder} fetchOptions={fetchOrders} /></FormField>
@@ -1217,6 +1264,7 @@ function TaskDetailSheet({ taskId, open, onOpenChange, onTaskUpdated }: {
   const [showCancelForm, setShowCancelForm] = useState(false);
   const [showAssign, setShowAssign] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [proofPreviewOpen, setProofPreviewOpen] = useState(false);
   const cancelInputRef = useRef<HTMLTextAreaElement>(null);
 
   const fetchTask = useCallback(async () => {
@@ -1539,16 +1587,29 @@ function TaskDetailSheet({ taskId, open, onOpenChange, onTaskUpdated }: {
                   </div>
                 )}
 
-                {task.proof_photo_url && (
-                  <div className="rounded-xl border border-border bg-card overflow-hidden">
-                    <div className="px-4 py-2.5 border-b border-border bg-muted/20">
-                      <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Proof Photo</span>
-                    </div>
-                    <div className="p-3">
-                      <img src={imageBaseURL + task.proof_photo_url} alt="Delivery proof" className="rounded-lg w-full object-cover max-h-40" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
-                    </div>
-                  </div>
-                )}
+              {task.proof_photo_url && (
+  <div className="rounded-xl border border-border bg-card overflow-hidden">
+    <div className="px-4 py-2.5 border-b border-border bg-muted/20">
+      <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Proof Photo</span>
+    </div>
+    <div className="p-3 relative group">
+      <img
+        src={imageBaseURL + task.proof_photo_url}
+        alt="Delivery proof"
+        className="rounded-lg w-full object-cover max-h-40"
+        onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+      />
+      <button
+        type="button"
+        onClick={() => setProofPreviewOpen(true)}
+        className="absolute top-5 right-5 flex items-center justify-center w-8 h-8 rounded-full bg-black/50 text-white backdrop-blur-sm  hover:bg-black/70"
+        aria-label="View full image"
+      >
+        <IconMaximize className="size-4" />
+      </button>
+    </div>
+  </div>
+)}
               </TabsContent>
 
               <TabsContent value="history" className="flex-1 overflow-y-auto p-6 mt-0">
@@ -1585,6 +1646,31 @@ function TaskDetailSheet({ taskId, open, onOpenChange, onTaskUpdated }: {
         </SheetContent>
       </Sheet>
       <AssignDialog task={task} open={showAssign} onOpenChange={setShowAssign} onAssigned={async () => { await fetchTask(); onTaskUpdated(); }} />
+        <Dialog open={proofPreviewOpen} onOpenChange={setProofPreviewOpen}>
+  <DialogContent className="sm:max-w-3xl border-none bg-transparent shadow-none p-0 [&>button]:hidden">
+    <DialogHeader className="sr-only">
+      <DialogTitle>Proof Photo</DialogTitle>
+      <DialogDescription>Full size view</DialogDescription>
+    </DialogHeader>
+    {task?.proof_photo_url && (
+      <div className="relative">
+        <img
+          src={imageBaseURL + task.proof_photo_url}
+          alt="Delivery proof"
+          className="w-full max-h-[85vh] object-contain rounded-lg"
+        />
+        <button
+          type="button"
+          onClick={() => setProofPreviewOpen(false)}
+          className="absolute top-2 right-2 flex items-center justify-center w-8 h-8 rounded-full bg-black/50 text-white backdrop-blur-sm hover:bg-black/70 transition-colors"
+          aria-label="Close"
+        >
+          <IconX className="size-4" />
+        </button>
+      </div>
+    )}
+  </DialogContent>
+</Dialog>
     </>
   );
 }
@@ -1830,7 +1916,7 @@ const exportDeliveriesToExcel = () => {
                   {pagination?.total > 0 ? `${pagination.total.toLocaleString("en-IN")} total ${activeTab} tasks · manage farm pickups and vendor deliveries` : "Manage farm pickups and vendor deliveries."}
                 </p>
               </div>
-              <Button onClick={() => setCreateOpen(true)} className="gap-2 shrink-0"><IconPlus className="size-4" />New Task</Button>
+              {/* <Button onClick={() => setCreateOpen(true)} className="gap-2 shrink-0"><IconPlus className="size-4" />New Task</Button> */}
             </div>
 
             {/* Main Card */}
@@ -1878,7 +1964,7 @@ const exportDeliveriesToExcel = () => {
                             <div className="flex items-start justify-between gap-2">
                               <div className="min-w-0">
                                 <span className="font-mono text-[11px] font-semibold text-muted-foreground group-hover:text-primary transition-colors">{task.delivery_number}</span>
-                                <h3 className="text-sm font-bold text-foreground truncate mt-0.5">{task.farmer?.full_name ?? "Unknown Farmer"}</h3>
+                                <h3 className="font-bold text-foreground truncate mt-0.5">{task.farmer?.full_name ?? "Unknown Farmer"}</h3>
                               </div>
                               {firstPhoto ? (
                                 <img src={firstPhoto} alt="Crop preview" className="w-10 h-10 rounded-md object-cover border border-border shrink-0 shadow-sm" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
@@ -1895,8 +1981,8 @@ const exportDeliveriesToExcel = () => {
                               )}
                               <div className="flex items-start gap-1.5 text-xs text-muted-foreground"><IconMapPin className="size-3.5 mt-0.5 shrink-0 text-red-400" /><span className="line-clamp-2 leading-relaxed">{task.pickup_address || "No address provided"}</span></div>
                               <div className="grid grid-cols-2 gap-2 text-[11px] bg-muted/30 dark:bg-muted/10 p-2 rounded-lg">
-                                <div><span className="text-muted-foreground block">QTY EXPECTED</span><span className="font-bold text-foreground">{task.expected_quantity_kg ?? task.crop?.quantity_kg ?? "—"} kg</span></div>
-                                <div><span className="text-muted-foreground block">AVAILABLE DATE</span><span className="font-semibold text-foreground">{formatDate(task.scheduled_date)}</span></div>
+                                <div><span className="text-muted-foreground block">QTY EXPECTED</span><span className="text-sm font-bold text-foreground">{task.expected_quantity_kg ?? task.crop?.quantity_kg ?? "—"} kg</span></div>
+                                <div><span className="text-muted-foreground block">AVAILABLE DATE</span><span className="text-sm font-semibold text-foreground">{formatDate(task.scheduled_date)}</span></div>
                               </div>
                             </div>
                           </div>

@@ -21,7 +21,7 @@ const PRESETS = [
   { key: "all",        label: "All time" },
 ];
 
-function fmtDisplay(dateStr) {
+function fmtDisplay(dateStr: string | null | undefined)  {
   if (!dateStr) return "";
   return new Date(dateStr).toLocaleDateString("en-IN", {
     day: "2-digit",
@@ -37,12 +37,12 @@ export function DateRangeToolbar({
   setActivePreset,
   loading,
   refresh,
-}) {
+}:any) {
   const [customFrom, setCustomFrom] = React.useState(dateRange.from);
   const [customTo, setCustomTo] = React.useState(dateRange.to);
   const [open, setOpen] = React.useState(false);
 
-  function applyPreset(key) {
+  function applyPreset(key: any) {
     const range = getPresetRange(key);
     setActivePreset(key);
     setDateRange(range);

@@ -1,8 +1,8 @@
 // src/services/api.js
 import axios from "axios";
 
-export const baseURL = "http://172.16.0.227:5000/api";
-export const imageBaseURL = "http://172.16.0.227:5000";
+export const baseURL = "https://apomapi.freshmindz.in/api";
+export const imageBaseURL = "https://apomapi.freshmindz.in";
 const api = axios.create({
   baseURL: baseURL,
 });

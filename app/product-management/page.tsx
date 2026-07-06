@@ -678,9 +678,9 @@ const [productFormGrade, setProductFormGrade] = useState<Grade>("A");
     season_end_month: "",
     is_active: true,
     inventory: {
-      A: { available_quantity_kg: "", warehouse_location: "", minimum_stock_alert: "" },
-      B: { available_quantity_kg: "", warehouse_location: "", minimum_stock_alert: "" },
-      C: { available_quantity_kg: "", warehouse_location: "", minimum_stock_alert: "" },
+      A: { available_quantity_kg: "", warehouse_location: "", minimum_stock_alert: "10" },
+      B: { available_quantity_kg: "", warehouse_location: "", minimum_stock_alert: "10" },
+      C: { available_quantity_kg: "", warehouse_location: "", minimum_stock_alert: "10" },
     } as Record<Grade, { available_quantity_kg: string; warehouse_location: string; minimum_stock_alert: string }>,
     pricing: {
       A: { base_price_per_kg: "", wholesale_price_per_kg: "", retail_price_per_kg: "", minimum_order_kg: "10", effective_from: new Date().toISOString().split("T")[0], effective_to: "" },
@@ -693,6 +693,7 @@ const [productFormGrade, setProductFormGrade] = useState<Grade>("A");
   const [imgerr, setimgerr] = useState<Boolean>(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const imageRef = useRef<HTMLInputElement>(null);
+  const [pricingMode, setPricingMode] = useState<"add" | "edit">("add");
 
   // ── Debounce search ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -1056,7 +1057,22 @@ const handleDelete = async () => {
   };
 
   // ── Pricing handlers (lifted from PricingTab) ──────────────────────────────
-  const openAddPricing = (productId: number) => {
+
+const openAddPricing = (productId: number, pricing?: any) => {
+  if (pricing) {
+    setPricingMode("edit");
+    setPricingForm({
+      product_id: String(productId),
+      grade: pricing.grade,
+      base_price_per_kg: pricing.base_price_per_kg != null ? String(pricing.base_price_per_kg) : "",
+      wholesale_price_per_kg: pricing.wholesale_price_per_kg != null ? String(pricing.wholesale_price_per_kg) : "",
+      retail_price_per_kg: pricing.retail_price_per_kg != null ? String(pricing.retail_price_per_kg) : "",
+      minimum_order_kg: pricing.minimum_order_kg != null ? String(pricing.minimum_order_kg) : "10",
+      effective_from: new Date().toISOString().split("T")[0],
+      effective_to: "",
+    });
+  } else {
+    setPricingMode("add");
     setPricingForm({
       product_id: String(productId),
       grade: "A",
@@ -1067,8 +1083,9 @@ const handleDelete = async () => {
       effective_from: new Date().toISOString().split("T")[0],
       effective_to: "",
     });
-    setPricingSheetOpen(true);
-  };
+  }
+  setPricingSheetOpen(true);
+};
 
   const handleAddPricing = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1328,7 +1345,7 @@ const handleDelete = async () => {
                                 lowStock={lowStock}
                                 onAdjustStock={(grade) => openAdjust(rowState.detail.product_id, grade)}
                                 onViewHistory={(grade) => openTransactions(rowState.detail.product_id, rowState.detail.product_name, grade)}
-                                onAddPricing={() => openAddPricing(rowState.detail.product_id)}
+                               onAddPricing={(pricing) => openAddPricing(rowState.detail.product_id, pricing)}
                                 onDeletePricing={(pricingId) => handleDeletePricing(pricingId, rowState.detail.product_id)}
                                 onEditInvPrice={() => openEditInvPrice(rowState.detail)}
                               />
@@ -1916,10 +1933,14 @@ const handleDelete = async () => {
       ════════════════════════════════════════════════════════════════════ */}
       <Sheet open={pricingSheetOpen} onOpenChange={setPricingSheetOpen}>
         <SheetContent className="w-full sm:max-w-md overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>Add Pricing</SheetTitle>
-            <SheetDescription>Create a new pricing entry for a product grade.</SheetDescription>
-          </SheetHeader>
+        <SheetHeader>
+  <SheetTitle>{pricingMode === "edit" ? "Edit Pricing" : "Add Pricing"}</SheetTitle>
+  <SheetDescription>
+    {pricingMode === "edit"
+      ? "Update pricing for this grade — this saves as a new active pricing entry."
+      : "Create a new pricing entry for a product grade."}
+  </SheetDescription>
+</SheetHeader>
           <form onSubmit={handleAddPricing} className="mt-6 space-y-4 px-4">
             <FormField label="Grade *" id="pr_grade">
               <Select value={pricingForm.grade} onValueChange={(v) => setPricingForm((f) => ({ ...f, grade: v as Grade }))}>
@@ -1947,7 +1968,9 @@ const handleDelete = async () => {
             </FormField> */}
             <SheetFooter className="pt-4 gap-2">
               <Button type="button" variant="outline" onClick={() => setPricingSheetOpen(false)} disabled={pricingSaving}>Cancel</Button>
-              <Button type="submit" disabled={pricingSaving}>{pricingSaving ? "Saving..." : "Add Pricing"}</Button>
+              <Button type="submit" disabled={pricingSaving}>
+  {pricingSaving ? "Saving..." : pricingMode === "edit" ? "Update Pricing" : "Add Pricing"}
+</Button>
             </SheetFooter>
           </form>
         </SheetContent>
@@ -2008,7 +2031,7 @@ interface ProductAccordionContentProps {
   lowStock: any[];
   onAdjustStock: (grade: Grade) => void;
   onViewHistory: (grade: Grade) => void;
-  onAddPricing: () => void;
+  onAddPricing: (pricing?: any) => void;
   onDeletePricing: (pricingId: number) => void;
   onEditInvPrice: () => void;
 }
@@ -2134,7 +2157,7 @@ function ProductAccordionContent({
             size="sm"
             variant="outline"
             className="text-xs h-7 px-2"
-            onClick={(e) => { e.stopPropagation(); onAddPricing(); }}
+            onClick={(e) => { e.stopPropagation(); onAddPricing(pr); }}
           >
             <IconEdit className="mr-1 size-3" /> Edit Pricing
           </Button>

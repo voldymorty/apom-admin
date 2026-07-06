@@ -93,7 +93,7 @@ export default function Page() {
                 )}
 
                 {/* ── KPI cards ── */}
-                <SectionCards summary={data?.summary} />
+                <SectionCards summary={data?.summary} loading={loading}/>
 
                 {/* ── Main chart: orders / revenue ── */}
                 <div className="px-4 lg:px-6">

@@ -368,6 +368,197 @@ function FormField({
 
 // ─── Send Notification Dialog ─────────────────────────────────────────────────
 
+// ─── Send Notification Dialog ─────────────────────────────────────────────────
+
+function UserSearchField({
+  role,
+  value,
+  onSelect,
+}: {
+  role: string;
+  value: { id: string; label: string } | null;
+  onSelect: (user: { id: string; label: string } | null) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [options, setOptions] = useState<{ id: string; label: string }[]>([]);
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  // Close on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node))
+        setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  // Reset when role changes
+  useEffect(() => {
+    setQuery("");
+    setOptions([]);
+    setOpen(false);
+    onSelect(null);
+  }, [role]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Sync display if value cleared externally
+  useEffect(() => {
+    if (!value) setQuery("");
+  }, [value]);
+
+  const fetchUsers = async (search: string) => {
+    if (!role || !search.trim()) {
+      setOptions([]);
+      setOpen(false);
+      return;
+    }
+    setLoading(true);
+    try {
+      let endpoint = "";
+      let mapFn: (item: any) => { id: string; label: string };
+
+if (role === "farmer") {
+  endpoint = `/admin/farmers?search=${encodeURIComponent(search)}&limit=20`;
+  mapFn = (f) => ({
+    id: String(f.user_id),
+    label: `${f.full_name ?? f.name ?? "Farmer"} · ${f.mobile_number ?? f.mobile ?? ""}`,
+  });
+} else if (role === "vendor") {
+  endpoint = `/admin/vendors?search=${encodeURIComponent(search)}&limit=20`;
+  mapFn = (v) => ({
+    id: String(v.user_id),
+    label: `${v.shop_name ?? v.owner_name ?? "Vendor"} · ${v.user?.mobile_number ?? v.mobile_number ?? ""}`,
+  });
+} else if (role === "delivery") {
+  endpoint = `/admin/delivery-personnel?search=${encodeURIComponent(search)}&limit=20`;
+  mapFn = (d) => ({
+    id: String(d.user_id),
+    label: `${d.full_name ?? d.name ?? "Delivery"} · ${d.mobile_number ?? d.mobile ?? ""}`,
+  });
+} else {
+        setOptions([]);
+        setLoading(false);
+        return;
+      }
+
+      const res = await api.get(endpoint);
+      const data = res.data?.data ?? res.data;
+      const list: any[] = Array.isArray(data)
+        ? data
+        : data?.farmers ?? data?.vendors ?? data?.delivery_personnel ?? data?.personnel ?? [];
+
+      setOptions(list.map(mapFn));
+      setOpen(true);
+    } catch {
+      setOptions([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setQuery(val);
+    onSelect(null);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => fetchUsers(val), 350);
+  };
+
+  const handleSelect = (opt: { id: string; label: string }) => {
+    setQuery(opt.label);
+    setOpen(false);
+    setOptions([]);
+    onSelect(opt);
+  };
+
+  const handleClear = () => {
+    setQuery("");
+    setOptions([]);
+    setOpen(false);
+    onSelect(null);
+  };
+
+  const isDisabled = !role || role === "admin";
+
+  return (
+    <div className="grid gap-1.5" ref={wrapperRef}>
+      <Label className="text-xs uppercase tracking-widest text-muted-foreground">
+        Search User
+      </Label>
+      <div className="relative">
+        <div className="pointer-events-none absolute inset-y-0 left-3 flex items-center">
+          {loading ? (
+            <Spinner size="sm" />
+          ) : (
+            <IconSearch className="size-4 text-muted-foreground" />
+          )}
+        </div>
+        <Input
+          type="text"
+          value={query}
+          onChange={handleInputChange}
+          onFocus={() => { if (options.length > 0) setOpen(true); }}
+          disabled={isDisabled}
+          placeholder={
+            !role
+              ? "Select a role first"
+              : role === "admin"
+              ? "Not available for admin"
+              : "Search by name..."
+          }
+          className="pl-9 pr-8 bg-white dark:bg-card"
+          autoComplete="off"
+        />
+        {query && !isDisabled && (
+          <button
+            type="button"
+            onClick={handleClear}
+            className="absolute inset-y-0 right-2.5 flex items-center text-muted-foreground hover:text-foreground"
+            tabIndex={-1}
+          >
+            <IconX className="size-3.5" />
+          </button>
+        )}
+
+        {open && options.length > 0 && (
+          <div className="absolute z-50 mt-1 w-full rounded-lg border border-border bg-white dark:bg-card shadow-lg max-h-52 overflow-y-auto">
+            {options.map((opt) => (
+              <button
+                key={opt.id}
+                type="button"
+                onMouseDown={(e) => { e.preventDefault(); handleSelect(opt); }}
+                className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-sm text-left hover:bg-muted/60 transition-colors border-b last:border-0 border-border/50"
+              >
+                <span className="font-medium truncate">{opt.label.split(" · ")[0]}</span>
+                <span className="text-xs text-muted-foreground shrink-0">
+                  {opt.label.split(" · ")[1]}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {open && !loading && options.length === 0 && query.trim() && (
+          <div className="absolute z-50 mt-1 w-full rounded-lg border border-border bg-white dark:bg-card shadow-lg px-3 py-3 text-sm text-muted-foreground">
+            No users found for &ldquo;{query}&rdquo;
+          </div>
+        )}
+      </div>
+
+      {value && (
+        <p className="text-xs text-emerald-600 flex items-center gap-1">
+          <IconCheck className="size-3" />
+          Selected: <span className="font-semibold">{value.label.split(" · ")[0]}</span>
+          <span className="text-muted-foreground">(ID: {value.id})</span>
+        </p>
+      )}
+    </div>
+  );
+}
+
 function SendNotificationDialog({
   open,
   onOpenChange,
@@ -379,9 +570,16 @@ function SendNotificationDialog({
 }) {
   const [form, setForm] = useState<SendForm>(DEFAULT_SEND_FORM);
   const [loading, setLoading] = useState(false);
+  // For "specific" tab — selected role + selected user object
+  const [specificRole, setSpecificRole] = useState<string>("");
+  const [selectedUser, setSelectedUser] = useState<{ id: string; label: string } | null>(null);
 
   useEffect(() => {
-    if (open) setForm(DEFAULT_SEND_FORM);
+    if (open) {
+      setForm(DEFAULT_SEND_FORM);
+      setSpecificRole("");
+      setSelectedUser(null);
+    }
   }, [open]);
 
   const set = (k: keyof SendForm, v: string | boolean) =>
@@ -390,6 +588,14 @@ function SendNotificationDialog({
   const handleSend = async () => {
     if (!form.title.trim() || !form.message.trim()) {
       toast.error("Title and message are required");
+      return;
+    }
+    if (form.target === "specific" && !selectedUser?.id) {
+      toast.error("Please select a user");
+      return;
+    }
+    if (form.target === "role" && !form.role) {
+      toast.error("Please select a role");
       return;
     }
     setLoading(true);
@@ -402,8 +608,8 @@ function SendNotificationDialog({
         priority: form.priority,
         send_push: form.send_push,
       };
-      if (form.target === "specific" && form.user_id)
-        body.user_id = Number(form.user_id);
+      if (form.target === "specific" && selectedUser?.id)
+        body.user_id = Number(selectedUser.id);
       if (form.target === "role" && form.role) body.role = form.role;
       if (form.reference_type) body.reference_type = form.reference_type;
       if (form.reference_id) body.reference_id = Number(form.reference_id);
@@ -457,17 +663,54 @@ function SendNotificationDialog({
             </div>
           </FormField>
 
+          {/* ── Specific User: role picker + user search ── */}
           {form.target === "specific" && (
-            <FormField label="User ID" id="user_id">
-              <Input
-                id="user_id"
-                placeholder="e.g. 5"
-                value={form.user_id}
-                onChange={(e) => set("user_id", e.target.value)}
+            <div className="rounded-lg border border-border p-3 space-y-3 bg-muted/20 ">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Target User
+              </p>
+           <div className="flex  gap-10 items-center justify-between">
+              {/* Role picker for specific user */}
+              <FormField label="Role" id="specific_role">
+                <Select
+                  value={specificRole || "none"}
+                  onValueChange={(v) => {
+                    const val = v === "none" ? "" : v;
+                    setSpecificRole(val);
+                    setSelectedUser(null);
+                    set("user_id", "");
+                  }}
+                >
+                  <SelectTrigger id="specific_role">
+                    <SelectValue placeholder="Select role to search" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none" disabled>
+                      Select a role
+                    </SelectItem>
+                    {(["farmer", "vendor", "delivery"] as UserRole[]).map((r) => (
+                      <SelectItem key={r} value={r}>
+                        {ROLE_CONFIG[r].label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </FormField>
+
+              {/* Searchable user dropdown */}
+              <UserSearchField
+                role={specificRole}
+                value={selectedUser}
+                onSelect={(u) => {
+                  setSelectedUser(u);
+                  set("user_id", u?.id ?? "");
+                }}
               />
-            </FormField>
+            </div>
+               </div>
           )}
 
+          {/* By Role */}
           {form.target === "role" && (
             <FormField label="Role" id="role">
               <Select value={form.role} onValueChange={(v) => set("role", v)}>
@@ -543,7 +786,7 @@ function SendNotificationDialog({
             />
           </FormField>
 
-          {/* Optional reference */}
+          {/* Optional reference
           <div className="rounded-lg border border-border p-3 space-y-3">
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Reference (optional)
@@ -584,7 +827,7 @@ function SendNotificationDialog({
                 onChange={(e) => set("action_url", e.target.value)}
               />
             </FormField>
-          </div>
+          </div> */}
 
           {/* Push toggle */}
           <div className="flex items-center justify-between rounded-lg border border-border px-4 py-3">
@@ -1014,7 +1257,7 @@ export default function NotificationsPage() {
               <div className="flex flex-col gap-3 p-4 border-b bg-muted/30 md:flex-row md:items-center md:justify-between">
                 <div className="flex flex-wrap gap-2 items-center">
                   {/* User ID search */}
-                  <div className="relative w-44">
+                  {/* <div className="relative w-44">
                     <IconSearch className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
                       placeholder="User ID..."
@@ -1030,7 +1273,7 @@ export default function NotificationsPage() {
                         <IconX className="size-3.5" />
                       </button>
                     )}
-                  </div>
+                  </div> */}
 
                   {/* Type */}
                   <Select

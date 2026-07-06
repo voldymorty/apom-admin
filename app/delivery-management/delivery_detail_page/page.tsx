@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState,Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { AppSidebar } from "@/components/app-sidebar";
@@ -75,7 +75,7 @@ function validateEditForm(form: EditFormState): string | null {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function DeliveryDetailPage() {
+ function DeliveryDetailPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const rawId = searchParams.get("id") || "";
@@ -331,32 +331,7 @@ export default function DeliveryDetailPage() {
                   </div>
 
                   {/* ── Right: Stats + Actions ── */}
-                  <div className="flex flex-col gap-4">
-
-                    {/* Photo */}
-                    <Card className="border-none ring-1 ring-border shadow-sm overflow-hidden">
-                      <div className="h-32 w-full bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center">
-                        {normalized.profilePhotoUrl ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={normalized.profilePhotoUrl}
-                            alt={normalized.fullName}
-                            className="h-full w-full object-cover"
-                          />
-                        ) : (
-                          <div className="flex flex-col items-center gap-1 text-primary/40">
-                            <IconUserCheck className="size-10" />
-                            <span className="text-[10px] uppercase tracking-widest">No Photo</span>
-                          </div>
-                        )}
-                      </div>
-                      <CardContent className="pt-3 pb-4 text-center">
-                        <p className="font-semibold text-foreground">{normalized.fullName}</p>
-                        <p className="text-xs text-muted-foreground uppercase tracking-widest mt-0.5">
-                          DP-{apiId}
-                        </p>
-                      </CardContent>
-                    </Card>
+                  <div className="flex flex-col gap-4">                    
 
                     {/* Performance Stats */}
                     <SectionCard
@@ -833,4 +808,12 @@ function toNum(value: any): number | null {
     return Number.isFinite(p) ? p : null;
   }
   return null;
+}
+
+export default function DeliveryDetailPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <DeliveryDetailPageContent />
+    </Suspense>
+  );
 }

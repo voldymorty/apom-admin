@@ -24,11 +24,32 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 
-const fmt = (val) => (val == null ? <span className="text-muted-foreground">—</span> : Number(val).toLocaleString("en-IN"));
-const fmtRs = (val) => (val == null ? <span className="text-muted-foreground">—</span> : `₹${Number(val).toLocaleString("en-IN")}`);
-const fmtDate = (val) => !val ? "—" : new Date(val).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+const fmt = (val: number | string | null | undefined) =>
+  val == null
+    ? <span className="text-muted-foreground">—</span>
+    : Number(val).toLocaleString("en-IN");
 
-function PctBadge({ done, total }) {
+const fmtRs = (val: number | string | null | undefined) =>
+  val == null
+    ? <span className="text-muted-foreground">—</span>
+    : `₹${Number(val).toLocaleString("en-IN")}`;
+
+const fmtDate = (val: string | Date | null | undefined) =>
+  !val
+    ? "—"
+    : new Date(val).toLocaleDateString("en-IN", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      });
+
+function PctBadge({
+  done,
+  total,
+}: {
+  done: number;
+  total: number;
+}) {
   if (!total) return <span className="text-muted-foreground text-xs">—</span>;
   const pct = Math.round((done / total) * 100);
   const cls = pct >= 90
@@ -43,17 +64,17 @@ const columns = [
   {
     accessorKey: "report_date",
     header: "Date",
-    cell: ({ row }) => <span className="whitespace-nowrap font-medium text-sm">{fmtDate(row.original.report_date)}</span>,
+    cell: ({ row }: any) => <span className="whitespace-nowrap font-medium text-sm">{fmtDate(row.original.report_date)}</span>,
   },
   {
     accessorKey: "total_orders",
     header: () => <div className="text-right">Orders</div>,
-    cell: ({ row }) => <div className="text-right">{fmt(row.original.total_orders)}</div>,
+    cell: ({ row }: any) => <div className="text-right">{fmt(row.original.total_orders)}</div>,
   },
   {
     accessorKey: "completed_orders",
     header: () => <div className="text-right">Completion</div>,
-    cell: ({ row }) => (
+    cell: ({ row }: any) => (
       <div className="flex justify-end">
         <PctBadge done={row.original.completed_orders} total={row.original.total_orders} />
       </div>
@@ -62,27 +83,27 @@ const columns = [
   {
     accessorKey: "cancelled_orders",
     header: () => <div className="text-right">Cancelled</div>,
-    cell: ({ row }) => <div className="text-right text-sm">{fmt(row.original.cancelled_orders)}</div>,
+    cell: ({ row }: any) => <div className="text-right text-sm">{fmt(row.original.cancelled_orders)}</div>,
   },
   {
     accessorKey: "total_revenue",
     header: () => <div className="text-right">Revenue</div>,
-    cell: ({ row }) => <div className="text-right font-medium">{fmtRs(row.original.total_revenue)}</div>,
+    cell: ({ row }: any) => <div className="text-right font-medium">{fmtRs(row.original.total_revenue)}</div>,
   },
   {
     accessorKey: "total_commission_earned",
     header: () => <div className="text-right">Commission</div>,
-    cell: ({ row }) => <div className="text-right text-sm">{fmtRs(row.original.total_commission_earned)}</div>,
+    cell: ({ row }: any) => <div className="text-right text-sm">{fmtRs(row.original.total_commission_earned)}</div>,
   },
   {
     accessorKey: "total_farmer_earnings",
     header: () => <div className="text-right">Farmer Earnings</div>,
-    cell: ({ row }) => <div className="text-right text-sm">{fmtRs(row.original.total_farmer_earnings)}</div>,
+    cell: ({ row }: any) => <div className="text-right text-sm">{fmtRs(row.original.total_farmer_earnings)}</div>,
   },
   {
     accessorKey: "total_deliveries",
     header: () => <div className="text-right">Deliveries</div>,
-    cell: ({ row }) => (
+    cell: ({ row }: any) => (
       <div className="flex justify-end">
         <PctBadge done={row.original.completed_deliveries} total={row.original.total_deliveries} />
       </div>
@@ -91,12 +112,12 @@ const columns = [
   {
     accessorKey: "total_quantity_procured_kg",
     header: () => <div className="text-right">Procured (kg)</div>,
-    cell: ({ row }) => <div className="text-right text-sm">{fmt(row.original.total_quantity_procured_kg)}</div>,
+    cell: ({ row }: any) => <div className="text-right text-sm">{fmt(row.original.total_quantity_procured_kg)}</div>,
   },
   {
     accessorKey: "active_farmers",
     header: () => <div className="text-right">Active Farmers</div>,
-    cell: ({ row }) => <div className="text-right text-sm">{fmt(row.original.active_farmers)}</div>,
+    cell: ({ row }: any) => <div className="text-right text-sm">{fmt(row.original.active_farmers)}</div>,
   },
 ];
 

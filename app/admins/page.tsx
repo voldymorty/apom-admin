@@ -317,10 +317,6 @@ export default function AdminsManagementPage() {
   };
 
   const validateForm = () => {
-    if (!formData.name.trim()) {
-      toast.warning("Validation", { description: "Name is required" });
-      return false;
-    }
     if (!formData.email.trim()) {
       toast.warning("Validation", { description: "Email is required" });
       return false;

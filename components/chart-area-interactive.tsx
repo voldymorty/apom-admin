@@ -15,7 +15,17 @@ import {
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Skeleton } from "@/components/ui/skeleton";
 
-export function ChartAreaInteractive({ ordersChart = [], revenueChart = [], loading = false }) {
+interface ChartAreaInteractiveProps {
+  ordersChart?: any[];
+  revenueChart?: any[];
+  loading?: boolean;
+}
+
+export function ChartAreaInteractive({
+  ordersChart = [],
+  revenueChart = [],
+  loading = false,
+}: ChartAreaInteractiveProps) {
   const isMobile = useIsMobile();
   const [timeRange, setTimeRange] = React.useState("30d");
   const [metric, setMetric] = React.useState("orders");
@@ -25,10 +35,13 @@ export function ChartAreaInteractive({ ordersChart = [], revenueChart = [], load
   }, [isMobile]);
 
   const mergedData = React.useMemo(() => {
-    const map = {};
+    const map: Record<string, any> = {};
     (ordersChart || []).forEach((d) => { map[d.date] = { ...map[d.date], ...d }; });
     (revenueChart || []).forEach((d) => { map[d.date] = { ...map[d.date], ...d }; });
-    return Object.values(map).sort((a, b) => new Date(a.date) - new Date(b.date));
+    return Object.values(map).sort(
+      (a: any, b: any) =>
+        new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
   }, [ordersChart, revenueChart]);
 
   const filteredData = React.useMemo(() => {

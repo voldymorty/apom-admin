@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState,Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { AppSidebar } from "@/components/app-sidebar";
@@ -13,6 +13,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   Table,
   TableBody,
   TableCell,
@@ -20,11 +27,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { IconArrowLeft, IconBuildingStore, IconMapPin } from "@tabler/icons-react";
+import { IconArrowLeft, IconBuildingStore, IconMapPin, IconPhone,IconX } from "@tabler/icons-react";
 import ProtectedRoute from "../../routes/ProtectedRoute";
 import api from "@/app/services/api";
 
-export default function VendorDetailPage() {
+ function VendorDetailPageContent(){
   const searchParams = useSearchParams();
   const vendorId = searchParams.get("id") || "";
   const [vendor, setVendor] = useState<any | null>(null);
@@ -43,6 +50,8 @@ export default function VendorDetailPage() {
   const [paymentsPage, setPaymentsPage] = useState(1);
   const [paymentsTotalPages, setPaymentsTotalPages] = useState<number | null>(null);
   const [paymentsTotalItems, setPaymentsTotalItems] = useState<number | null>(null);
+  const [photoPreviewOpen, setPhotoPreviewOpen] = useState(false);
+const [photoPreviewSrc, setPhotoPreviewSrc] = useState<{ src: string; title: string } | null>(null);
   const [paymentsSummary, setPaymentsSummary] = useState({
     totalSuccessAmount: "--",
     totalFailedCount: "--",
@@ -74,6 +83,14 @@ export default function VendorDetailPage() {
   }, [vendorId]);
 
   const normalized = useMemo(() => normalizeVendorDetail(vendor, vendorId), [vendor, vendorId]);
+  const mapUrl = useMemo(() => {
+  const lat = normalized.latitude !== "--" ? normalized.latitude : "";
+  const lng = normalized.longitude !== "--" ? normalized.longitude : "";
+  if (lat && lng) return `https://www.google.com/maps?q=${encodeURIComponent(`${lat},${lng}`)}`;
+  if (normalized.address && normalized.address !== "--")
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(normalized.address)}`;
+  return "";
+}, [normalized]);
   const ordersRows = useMemo(() => orders.map((order, index) => normalizeOrder(order, index)), [orders]);
   const canGoPrevOrders = ordersPage > 1;
   const canGoNextOrders =
@@ -194,73 +211,137 @@ export default function VendorDetailPage() {
               </Button>
             </div>
 
-            <Card className="border-none ring-1 ring-border shadow-md bg-white/70 backdrop-blur-sm">
-              <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between border-b bg-muted/30">
-                <CardTitle className="flex items-center gap-2">
-                  <IconBuildingStore className="size-5 text-primary" />
-                  Vendor Profile
-                </CardTitle>
-                <Badge
-                  variant="outline"
-                  className={
-                    normalized.isActive
-                      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                      : "bg-muted text-muted-foreground border-transparent"
-                  }
-                >
-                  {normalized.isActive ? "Active" : "Inactive"}
-                </Badge>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {loading ? (
-                  <div className="py-6 text-center text-muted-foreground">Loading vendor...</div>
-                ) : error ? (
-                  <div className="py-6 text-center text-muted-foreground">{error}</div>
+            <CardContent className="space-y-6 pt-6">
+  {loading ? (
+    <div className="grid gap-4 md:grid-cols-2">
+      <div className="h-40 rounded-2xl border bg-muted/40 animate-pulse" />
+      <div className="grid gap-4">
+        {[...Array(3)].map((_, i) => (
+          <div key={i} className="h-20 rounded-xl border bg-muted/40 animate-pulse" />
+        ))}
+      </div>
+    </div>
+  ) : error ? (
+    <div className="py-6 text-center text-muted-foreground">{error}</div>
+  ) : (
+    <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
+      {/* Hero card */}
+      <div className="rounded-2xl border bg-gradient-to-br from-primary/10 via-background to-emerald-50/50 p-6 shadow-sm">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+          {/* Photos */}
+          <div className="flex gap-3 shrink-0">
+            <div className="flex flex-col gap-1">
+              <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Vendor</p>
+              <div className="h-24 w-24 overflow-hidden rounded-2xl border bg-muted/30">
+                {normalized.vendorPhoto ? (
+                  <img src={normalized.vendorPhoto} alt={`${normalized.shopName} vendor`} className="h-full w-full object-cover" />
                 ) : (
-                  <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
-                    <div className="grid gap-4">
-                      <div className="flex flex-wrap items-center gap-4">
-                        <PhotoBlock label="Vendor Photo" src={normalized.vendorPhoto} alt={`${normalized.shopName} vendor`} />
-                        <PhotoBlock label="Shop Photo" src={normalized.shopPhoto} alt={`${normalized.shopName} shop`} />
-                      </div>
-                      <InfoRow label="Shop Name" value={normalized.shopName} />
-                      <InfoRow label="Owner Name" value={normalized.ownerName} />
-                      <InfoRow label="Mobile" value={normalized.mobile} />
-                     
-                      <InfoRow label="Business Type" value={normalized.businessType} />
-                      <InfoRow label="GST Number" value={normalized.gstNumber} />
-                      <InfoRow label="Address" value={normalized.address} />
-                      <InfoRow label="Pincode" value={normalized.pincode} />
-                      <InfoRow label="Latitude" value={normalized.latitude} />
-                      <InfoRow label="Longitude" value={normalized.longitude} />
-                      <div className="flex items-start justify-between gap-3">
-                        <span className="text-[10px] uppercase tracking-widest text-muted-foreground">Location</span>
-                        <div className="text-sm text-muted-foreground text-right">
-                          <div className="inline-flex items-center gap-1.5">
-                            <IconMapPin className="size-4 text-primary/60" />
-                            <span className="font-semibold text-foreground">S:</span> {normalized.stateName}
-                          </div>
-                          <div>
-                            <span className="font-semibold text-foreground">D:</span> {normalized.districtName}
-                          </div>
-                          <div>
-                            <span className="font-semibold text-foreground">C:</span> {normalized.cityName}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="grid gap-4">
-                      <StatCard label="Total Orders" value={normalized.totalOrders} />
-                      <StatCard label="Total Revenue" value={normalized.totalRevenue} />
-                      <StatCard label="Pending Orders" value={normalized.pendingOrders} />
-                      <StatCard label="Created At" value={normalized.createdAt} />
-                      <StatCard label="Updated At" value={normalized.updatedAt} />
-                    </div>
-                  </div>
+                  <div className="flex h-full w-full items-center justify-center text-[10px] uppercase tracking-widest text-muted-foreground">No Photo</div>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            </div>
+            <div className="flex flex-col gap-1">
+              <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Shop</p>
+              <div className="h-24 w-24 overflow-hidden rounded-2xl border bg-muted/30">
+                {normalized.shopPhoto ? (
+                  <img src={normalized.shopPhoto} alt={`${normalized.shopName} shop`} className="h-full w-full object-cover" />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-[10px] uppercase tracking-widest text-muted-foreground">No Photo</div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Details */}
+          <div className="flex flex-1 flex-col gap-2">
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <p className="text-xs uppercase tracking-widest text-muted-foreground">Shop Name</p>
+                <p className="text-2xl font-semibold">{normalized.shopName}</p>
+              </div>
+              <div className="flex gap-2">
+                {normalized.vendorPhoto && (
+                  <Button size="sm" className="bg-green-600 text-white hover:bg-white hover:text-black cursor-pointer" variant="outline"  onClick={() => { setPhotoPreviewSrc({ src: normalized.vendorPhoto, title: "Vendor Photo" }); setPhotoPreviewOpen(true); }}>
+                    Vendor Photo
+                  </Button>
+                )}
+                {normalized.shopPhoto && (
+                  <Button size="sm" className="bg-green-600 text-white hover:bg-white hover:text-black cursor-pointer" variant="outline" onClick={() => { setPhotoPreviewSrc({ src: normalized.shopPhoto, title: "Shop Photo" }); setPhotoPreviewOpen(true); }}>
+                    Shop Photo
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            <div className="text-sm text-muted-foreground">
+              Owner: <span className="font-semibold text-foreground">{normalized.ownerName}</span>
+            </div>
+
+            <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
+              <span className="inline-flex items-center gap-1.5">
+                <IconPhone className="size-4 text-primary/60" />
+                {normalized.mobile}
+              </span>
+            </div>
+
+            <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
+              <span className="inline-flex items-center gap-1.5">
+                <IconMapPin className="size-4 text-primary/60" />
+                <span className="text-xs uppercase tracking-widest">State</span>
+                <span className="font-semibold text-foreground">{normalized.stateName}</span>
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <span className="text-xs uppercase tracking-widest">District</span>
+                <span className="font-semibold text-foreground">{normalized.districtName}</span>
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <span className="text-xs uppercase tracking-widest">City</span>
+                <span className="font-semibold text-foreground">{normalized.cityName}</span>
+              </span>
+            </div>
+
+            <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
+              <span className="inline-flex items-center gap-1.5">
+                <span className="text-xs uppercase tracking-widest">GST</span>
+                <span className="font-semibold text-foreground">{normalized.gstNumber}</span>
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <span className="text-xs uppercase tracking-widest">Type</span>
+                <span className="font-semibold text-foreground">{normalized.businessType}</span>
+              </span>
+            </div>
+
+            <div className="flex flex-wrap gap-2 pt-1">
+              {normalized.mobile !== "--" ? (
+                <Button asChild size="sm">
+                  <a href={`tel:${normalized.mobile}`}>Call</a>
+                </Button>
+              ) : (
+                <Button size="sm" disabled>Call</Button>
+              )}
+              {mapUrl ? (
+                <Button asChild size="sm" variant="outline">
+                  <a href={mapUrl} target="_blank" rel="noreferrer">Directions</a>
+                </Button>
+              ) : (
+                <Button size="sm" variant="outline" disabled>Directions</Button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Quick stats */}
+      <div className="grid gap-4">
+        <StatCard label="Total Orders" value={normalized.totalOrders} />
+        <StatCard label="Total Revenue" value={normalized.totalRevenue} accent />
+        <StatCard label="Pending Orders" value={normalized.pendingOrders} />
+        <StatCard label="Created At" value={normalized.createdAt} />
+        <StatCard label="Updated At" value={normalized.updatedAt} />
+      </div>
+    </div>
+  )}
+</CardContent>
 
             <Card className="border-none ring-1 ring-border shadow-sm bg-white/70 backdrop-blur-sm">
               <CardHeader className="border-b bg-muted/30">
@@ -456,6 +537,31 @@ export default function VendorDetailPage() {
           </div>
         </SidebarInset>
       </SidebarProvider>
+      <Dialog open={photoPreviewOpen} onOpenChange={setPhotoPreviewOpen}>
+  <DialogContent className="sm:max-w-3xl border-none bg-transparent shadow-none p-0 [&>button]:hidden">
+    <DialogHeader className="sr-only">
+      <DialogTitle>{photoPreviewSrc?.title ?? "Photo"}</DialogTitle>
+      <DialogDescription>Full size view</DialogDescription>
+    </DialogHeader>
+    {photoPreviewSrc?.src && (
+      <div className="relative">
+        <img
+          src={photoPreviewSrc.src}
+          alt={photoPreviewSrc.title}
+          className="w-full max-h-[85vh] object-contain rounded-lg"
+        />
+        <button
+          type="button"
+          onClick={() => setPhotoPreviewOpen(false)}
+          className="absolute top-2 right-2 flex items-center justify-center w-8 h-8 rounded-full bg-black/50 text-white backdrop-blur-sm hover:bg-black/70 transition-colors"
+          aria-label="Close"
+        >
+          <IconX className="size-4" />
+        </button>
+      </div>
+    )}
+  </DialogContent>
+</Dialog>
     </ProtectedRoute>
   );
 }
@@ -469,11 +575,13 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function StatCard({ label, value }: { label: string; value: string }) {
+function StatCard({ label, value, accent = false }: { label: string; value: string; accent?: boolean }) {
   return (
     <div className="rounded-xl border bg-gradient-to-br from-muted/30 via-background to-emerald-50/40 p-4 shadow-sm">
       <p className="text-xs uppercase tracking-widest text-muted-foreground">{label}</p>
-      <p className="text-lg font-semibold text-foreground">{value}</p>
+      <p className={accent ? "text-lg font-semibold text-emerald-600" : "text-lg font-semibold text-foreground"}>
+        {value} 
+      </p>
     </div>
   );
 }
@@ -531,7 +639,7 @@ function normalizeVendorDetail(raw: any, fallbackId: string) {
 
   const address = raw?.primary_address ?? raw?.address ?? "--";
   const totalOrders = formatNumber(raw?.stats?.total_orders ?? raw?.total_orders ?? raw?.orders ?? 0);
-  const totalRevenue = formatNumber(raw?.stats?.total_revenue ?? raw?.total_revenue ?? 0);
+  const totalRevenue = formatRevenue(raw?.stats?.total_revenue ?? raw?.total_revenue ?? 0);
   const pendingOrders = formatNumber(raw?.stats?.pending_orders ?? raw?.pending_orders ?? 0);
   const createdAt = formatDateTime(raw?.created_at);
   const updatedAt = formatDateTime(raw?.updated_at);
@@ -595,6 +703,7 @@ function normalizeOrder(raw: any, index: number) {
   const orderStatus = formatValue(raw?.order_status ?? raw?.status ?? "--");
   const paymentStatus = formatValue(raw?.payment_status ?? raw?.paymentStatus ?? "--");
   const finalAmount = formatCurrency(raw?.final_amount ?? raw?.finalAmount ?? 0);
+
   const orderDate = formatDateTime(raw?.order_date ?? raw?.created_at ?? raw?.createdAt);
   const itemsCount = Array.isArray(raw?.order_items) ? raw.order_items.length : raw?.items_count ?? "--";
 
@@ -613,6 +722,27 @@ function formatCurrency(value: any) {
   const numeric = typeof value === "string" ? Number(value) : value;
   if (!Number.isFinite(numeric)) return "--";
   return `Rs ${numeric.toLocaleString("en-IN")}`;
+}
+
+  function formatRevenue(value: any) {
+  const n = toNumber(value);
+  if (n === null) return "--";
+
+  if (n > 9999999) {
+    const crore = n / 10000000;
+    return `Rs ${formatScaled(crore)} Cr`;
+  }
+  if (n > 99999) {
+    const lakh = n / 100000;
+    return `Rs ${formatScaled(lakh)} L`;
+  }
+  return `Rs ${n.toLocaleString("en-IN")}`;
+}
+
+function formatScaled(n: number) {
+  return n % 1 === 0
+    ? n.toLocaleString("en-IN")
+    : n.toLocaleString("en-IN", { maximumFractionDigits: 2 });
 }
 
 function formatCount(value: any) {
@@ -669,4 +799,12 @@ function toNumber(value: any): number | null {
     return Number.isFinite(parsed) ? parsed : null;
   }
   return null;
+}
+
+export default function VendorDetailPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <VendorDetailPageContent />
+    </Suspense>
+  );
 }

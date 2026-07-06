@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useRef, useCallback } from "react";
+import { useEffect, useMemo, useState, useRef, useCallback,Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { AppSidebar } from "@/components/app-sidebar";
@@ -9,6 +9,16 @@ import {
   SidebarInset,
   SidebarProvider,
 } from "@/components/animate-ui/components/radix/sidebar";
+
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -44,6 +54,8 @@ import {
   IconChevronDown,
   IconAlertCircle,
   IconCheck,
+ IconEye,
+ IconMaximize
 } from "@tabler/icons-react";
 import { toast } from "sonner";
 import ProtectedRoute from "../../routes/ProtectedRoute";
@@ -243,7 +255,7 @@ function LocationSearchField({
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function FarmerDetailPage() {
+function FarmerDetailPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const farmerId = searchParams.get("id") || "";
@@ -285,6 +297,11 @@ export default function FarmerDetailPage() {
   const [crops, setCrops] = useState<any[]>([]);
   const [cropsLoading, setCropsLoading] = useState(false);
   const [cropsError, setCropsError] = useState("");
+  const [selectedCrop, setSelectedCrop] = useState<typeof cropRows[0] | null>(null);
+  const [photoPreviewOpen, setPhotoPreviewOpen] = useState(false);
+const [photoPreviewSrc, setPhotoPreviewSrc] = useState<{ src: string; title: string } | null>(null);
+  const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
+  const [selectedEarning, setSelectedEarning] = useState<typeof earningsRows[0] | null>(null);
 
   // Earnings
   const [earnings, setEarnings] = useState<any[]>([]);
@@ -612,6 +629,11 @@ export default function FarmerDetailPage() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
+  const openfullimage = ()=>{
+    setSelectedCrop(null)
+    
+  }
+   
   return (
     <ProtectedRoute>
       <SidebarProvider
@@ -782,13 +804,24 @@ export default function FarmerDetailPage() {
                             )}
                           </div>
                           <div className="flex flex-1 flex-col gap-2">
-                            <div>
-                              <p className="text-xs uppercase tracking-widest text-muted-foreground">
+                            <div className="flex justify-between">
+                              <div>
+                                  <p className="text-xs uppercase tracking-widest text-muted-foreground">
                                 Farmer Name
                               </p>
                               <p className="text-2xl font-semibold">
                                 {normalized.name}
                               </p>
+                              </div>
+                               <div>
+                                     <Button  size="sm" variant="outline" className="bg-green-600 text-white hover:bg-white hover:text-black cursor-pointer"   onClick={() => {
+    if (normalized.profilePhoto) {
+      setPhotoPreviewSrc({ src: normalized.profilePhoto, title: "Profile Photo" });
+      setPhotoPreviewOpen(true);
+    }
+  }}
+  disabled={!normalized.profilePhoto}>View Full Image</Button>
+                               </div>
                             </div>
                             <div className="text-sm text-muted-foreground">
                               Farm:{" "}
@@ -978,18 +1011,21 @@ export default function FarmerDetailPage() {
                     </div>
 
                     {/* Photos */}
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <PhotoCard
-                        title="Land Photo"
-                        src={normalized.landPhoto}
-                        alt="Land"
-                      />
-                      <PhotoCard
-                        title="Profile Photo"
-                        src={normalized.profilePhoto}
-                        alt={normalized.name}
-                      />
-                    </div>
+                    {/* Photos */}
+<div className="grid gap-4 md:grid-cols-2">
+  <PhotoCard
+    title="Land Photo"
+    src={normalized.landPhoto}
+    alt="Land"
+    onPreview={(src, title) => { setPhotoPreviewSrc({ src, title }); setPhotoPreviewOpen(true); }}
+  />
+  <PhotoCard
+    title="Profile Photo"
+    src={normalized.profilePhoto}
+    alt={normalized.name}
+    onPreview={(src, title) => { setPhotoPreviewSrc({ src, title }); setPhotoPreviewOpen(true); }}
+  />
+</div>
 
                     {/* Land Segments */}
                     <Card className="border-none ring-1 ring-border shadow-sm bg-white/70 backdrop-blur-sm">
@@ -1047,12 +1083,12 @@ export default function FarmerDetailPage() {
                                   </Badge>
                                 </div>
                                 <div className="mt-3 grid gap-2 text-sm text-muted-foreground">
-                                  <div className="flex justify-between">
+                                  {/* <div className="flex justify-between">
                                     <span>Segment ID</span>
                                     <span className="font-semibold text-foreground">
                                       {Segment.id}
                                     </span>
-                                  </div>
+                                  </div> */}
                                   <div className="flex justify-between">
                                     <span>Area</span>
                                     <span className="font-semibold text-foreground">
@@ -1103,269 +1139,507 @@ export default function FarmerDetailPage() {
                     </Card>
 
                     {/* Crops */}
-                    <Card className="border-none ring-1 ring-border shadow-sm bg-white/70 backdrop-blur-sm">
-                      <CardHeader className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between border-b bg-muted/30">
-                        <CardTitle className="text-sm font-semibold">
-                          Crops
-                        </CardTitle>
-                        <span className="text-xs uppercase tracking-widest text-muted-foreground">
-                          {cropRows.length} total
-                        </span>
-                      </CardHeader>
-                      <CardContent className="space-y-3 pt-4">
-                        {cropsLoading ? (
-                          <p className="text-sm text-muted-foreground">
-                            Loading crops...
-                          </p>
-                        ) : cropsError ? (
-                          <p className="text-sm text-muted-foreground">
-                            {cropsError}
-                          </p>
-                        ) : cropRows.length === 0 ? (
-                          <p className="text-sm text-muted-foreground">
-                            No crops found for this farmer.
-                          </p>
-                        ) : (
-                          <div className="grid gap-3 md:grid-cols-2">
-                            {cropRows.map((crop) => (
-                              <div
-                                key={crop.id}
-                                className="rounded-xl border bg-card p-4 shadow-sm"
-                              >
-                                <div className="flex items-center justify-between">
-                                  <div>
-                                    <p className="text-xs uppercase tracking-widest text-muted-foreground">
-                                      Crop ID
-                                    </p>
-                                    <p className="text-lg font-semibold">
-                                      {crop.id}
-                                    </p>
-                                  </div>
-                                  <Badge
-                                    variant="outline"
-                                    className={
-                                      crop.status === "available"
-                                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                                        : crop.status === "pending"
-                                        ? "bg-amber-50 text-amber-700 border-amber-200"
-                                        : "bg-muted text-muted-foreground border-transparent"
-                                    }
-                                  >
-                                    {crop.statusLabel}
-                                  </Badge>
-                                </div>
-                                <div className="mt-3 grid gap-2 text-sm text-muted-foreground">
-                                  <div className="flex justify-between">
-                                    <span>Product ID</span>
-                                    <span className="font-semibold text-foreground">
-                                      {crop.productId}
-                                    </span>
-                                  </div>
-                                  <div className="flex justify-between">
-                                    <span>Quantity</span>
-                                    <span className="font-semibold text-foreground">
-                                      {crop.quantity}
-                                    </span>
-                                  </div>
-                                  <div className="flex justify-between">
-                                    <span>Grade</span>
-                                    <span className="font-semibold text-foreground">
-                                      {crop.grade}
-                                    </span>
-                                  </div>
-                                  <div className="flex justify-between">
-                                    <span>Expected Price</span>
-                                    <span className="font-semibold text-foreground">
-                                      {crop.expectedPrice}
-                                    </span>
-                                  </div>
-                                  <div className="flex justify-between">
-                                    <span>Ready</span>
-                                    <span className="font-semibold text-foreground">
-                                      {crop.isReady ? "Yes" : "No"}
-                                    </span>
-                                  </div>
-                                  <div className="flex justify-between">
-                                    <span>Harvest Date</span>
-                                    <span className="font-semibold text-foreground">
-                                      {crop.harvestDate}
-                                    </span>
-                                  </div>
-                                  {crop.SegmentName !== "--" && (
-                                    <div className="flex justify-between">
-                                      <span>Segment</span>
-                                      <span className="font-semibold text-foreground">
-                                        {crop.SegmentName}
-                                      </span>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
+                    {/* Crops */}
+{/* Crops Detail Dialog */}
+<Dialog open={selectedCrop !== null} onOpenChange={(open) => { if (!open) setSelectedCrop(null);  setImagePreviewOpen(false); }}>
+  <DialogContent className="sm:max-w-[480px]">
+    <DialogHeader>
+      <DialogTitle className="text-base font-semibold">{selectedCrop?.productName}</DialogTitle>
+      <DialogDescription className="text-xs text-muted-foreground">{selectedCrop?.categoryName}</DialogDescription>
+    </DialogHeader>
+    {selectedCrop && (
+      <div className="space-y-4">
+        {/* Photo */}
+       {selectedCrop.cropPhotoUrl ? (
+  <div className="relative group">
+    <img
+      src={selectedCrop.cropPhotoUrl}
+      alt={selectedCrop.productName}
+      className="w-full h-48 object-cover rounded-xl"
+    />
+    <button
+      type="button"
+      onClick={() => setImagePreviewOpen(true)}
+      className="absolute top-2 right-2 flex items-center justify-center w-8 h-8 rounded-full bg-black/50 text-white backdrop-blur-sm  transition-opacity hover:bg-black/70"
+      aria-label="View full image"
+    >
+      <IconMaximize className="size-4" />
+    </button>
+  </div>
+) : (
+  <div className="w-full h-24 bg-muted/40 flex items-center justify-center text-xs uppercase tracking-widest text-muted-foreground rounded-xl">No Photo</div>
+)}
+
+        {/* Qty / Grade / Ready */}
+        <div className="grid grid-cols-3 rounded-xl overflow-hidden border border-border">
+          <div className="px-4 py-3">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-0.5">Quantity</p>
+            <p className="font-medium text-foreground">{selectedCrop.quantity}</p>
+          </div>
+          <div className="px-4 py-3 border-x border-border">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-0.5">Grade</p>
+            <p className="font-medium text-foreground">{selectedCrop.grade}</p>
+          </div>
+          <div className="px-4 py-3">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-0.5">Ready</p>
+            <p className="font-medium text-foreground flex items-center gap-1.5">
+              {selectedCrop.isReady && <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />}
+              {selectedCrop.isReady ? "Yes" : "No"}
+            </p>
+          </div>
+        </div>
+
+        {/* Detail rows */}
+        <div className="rounded-xl border border-border divide-y divide-border text-sm">
+          <div className="flex justify-between items-center px-4 py-2.5">
+            <span className="text-muted-foreground">Status</span>
+            <Badge variant="outline" className={
+              selectedCrop.status === "available" ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+              : selectedCrop.status === "pending" ? "bg-amber-50 text-amber-700 border-amber-200"
+              : selectedCrop.status === "picked_up" ? "bg-blue-50 text-blue-700 border-blue-200"
+              : "bg-muted text-muted-foreground border-transparent"
+            }>{selectedCrop.statusLabel}</Badge>
+          </div>
+          <div className="flex justify-between items-center px-4 py-2.5">
+            <span className="text-muted-foreground">Expected price</span>
+            <span className="font-medium text-foreground">{selectedCrop.expectedPrice}</span>
+          </div>
+          <div className="flex justify-between items-center px-4 py-2.5">
+            <span className="text-muted-foreground">Harvest date</span>
+            <span className="font-medium text-foreground">{selectedCrop.harvestDate}</span>
+          </div>
+          {selectedCrop.SegmentName !== "--" && (
+            <div className="flex justify-between items-center px-4 py-2.5">
+              <span className="text-muted-foreground">Segment</span>
+              <span className="font-medium text-foreground">{selectedCrop.SegmentName}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Remarks */}
+        {selectedCrop.remarks && (
+          <div className="rounded-xl bg-muted/20 px-4 py-3">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Remarks</p>
+            <p className="text-sm text-foreground">{selectedCrop.remarks}</p>
+          </div>
+        )}
+      </div>
+    )}
+    <DialogFooter>
+      <Button variant="outline" onClick={() => setSelectedCrop(null)}>Close</Button>
+    </DialogFooter>
+  </DialogContent>
+</Dialog>
+{/* for crops detail full preview */}
+<Dialog open={imagePreviewOpen} onOpenChange={setImagePreviewOpen}>
+  <DialogContent className="sm:max-w-3xl border-none bg-transparent shadow-none p-0 [&>button]:hidden">
+    <DialogHeader className="sr-only">
+      <DialogTitle>{selectedCrop?.productName ?? "Crop photo"}</DialogTitle>
+      <DialogDescription>Full size view</DialogDescription>
+    </DialogHeader>
+    {selectedCrop?.cropPhotoUrl && (
+      <div className="relative">
+        <img
+          src={selectedCrop.cropPhotoUrl}
+          alt={selectedCrop.productName}
+          className="w-full max-h-[85vh] object-contain rounded-lg"
+        />
+        <button
+          type="button"
+          onClick={() => setImagePreviewOpen(false)}
+          className="absolute top-2 right-2 flex items-center justify-center w-8 h-8 rounded-full bg-black/50 text-white backdrop-blur-sm hover:bg-black/70 transition-colors"
+          aria-label="Close"
+        >
+          <IconX className="size-4" />
+        </button>
+      </div>
+    )}
+  </DialogContent>
+</Dialog>
+{/* for land and profile full view img */}
+<Dialog open={photoPreviewOpen} onOpenChange={setPhotoPreviewOpen}>
+  <DialogContent className="sm:max-w-3xl border-none bg-transparent shadow-none p-0 [&>button]:hidden">
+    <DialogHeader className="sr-only">
+      <DialogTitle>{photoPreviewSrc?.title ?? "Photo"}</DialogTitle>
+      <DialogDescription>Full size view</DialogDescription>
+    </DialogHeader>
+    {photoPreviewSrc?.src && (
+      <div className="relative">
+        <img
+          src={photoPreviewSrc.src}
+          alt={photoPreviewSrc.title}
+          className="w-full max-h-[85vh] object-contain rounded-lg"
+        />
+        <button
+          type="button"
+          onClick={() => setPhotoPreviewOpen(false)}
+          className="absolute top-2 right-2 flex items-center justify-center w-8 h-8 rounded-full bg-black/50 text-white backdrop-blur-sm hover:bg-black/70 transition-colors"
+          aria-label="Close"
+        >
+          <IconX className="size-4" />
+        </button>
+      </div>
+    )}
+  </DialogContent>
+</Dialog>
+{/* Crops Card with Table */}
+
 
                     {/* Earnings */}
-                    <Card className="border-none ring-1 ring-border shadow-sm bg-white/70 backdrop-blur-sm">
-                      <CardHeader className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between border-b bg-muted/30">
-                        <div>
-                          <CardTitle className="text-sm font-semibold">
-                            Earnings History
-                          </CardTitle>
-                          <p className="text-xs text-muted-foreground">
-                            {getEarningsDateLabel()}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Badge
-                            variant="outline"
-                            className="bg-emerald-50 text-emerald-700 border-emerald-200"
-                          >
-                            Paid
-                          </Badge>
-                          <span className="text-xs uppercase tracking-widest text-muted-foreground">
-                            {earningsRows.length} items
-                          </span>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-4 pt-4">
-                        {earningsLoading ? (
-                          <p className="text-sm text-muted-foreground">
-                            Loading earnings...
-                          </p>
-                        ) : earningsError ? (
-                          <p className="text-sm text-muted-foreground">
-                            {earningsError}
-                          </p>
-                        ) : earningsRows.length === 0 ? (
-                          <p className="text-sm text-muted-foreground">
-                            No earnings found for this period.
-                          </p>
-                        ) : (
-                          <div className="grid gap-3">
-                            {earningsRows.map((earning) => (
-                              <div
-                                key={earning.id}
-                                className="rounded-xl border bg-card p-4 shadow-sm"
-                              >
-                                <div className="flex flex-wrap items-center justify-between gap-3">
-                                  <div>
-                                    <p className="text-xs uppercase tracking-widest text-muted-foreground">
-                                      Earning ID
-                                    </p>
-                                    <p className="text-lg font-semibold">
-                                      {earning.id}
-                                    </p>
-                                  </div>
-                                  <Badge
-                                    variant="outline"
-                                    className={
-                                      earning.paymentStatus === "paid"
-                                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                                        : "bg-amber-50 text-amber-700 border-amber-200"
-                                    }
-                                  >
-                                    {earning.paymentStatusLabel}
-                                  </Badge>
-                                </div>
-                                <div className="mt-3 grid gap-2 text-sm text-muted-foreground md:grid-cols-2">
-                                  <div className="flex justify-between">
-                                    <span>Crop ID</span>
-                                    <span className="font-semibold text-foreground">
-                                      {earning.cropId}
-                                    </span>
-                                  </div>
-                                  <div className="flex justify-between">
-                                    <span>Pickup ID</span>
-                                    <span className="font-semibold text-foreground">
-                                      {earning.pickupId}
-                                    </span>
-                                  </div>
-                                  <div className="flex justify-between">
-                                    <span>Quantity Supplied</span>
-                                    <span className="font-semibold text-foreground">
-                                      {earning.quantitySupplied}
-                                    </span>
-                                  </div>
-                                  <div className="flex justify-between">
-                                    <span>Price / Kg</span>
-                                    <span className="font-semibold text-foreground">
-                                      {earning.pricePerKg}
-                                    </span>
-                                  </div>
-                                  <div className="flex justify-between">
-                                    <span>Total Amount</span>
-                                    <span className="font-semibold text-foreground">
-                                      {earning.totalAmount}
-                                    </span>
-                                  </div>
-                                  {/* <div className="flex justify-between">
-                                    <span>Commission</span>
-                                    <span className="font-semibold text-foreground">
-                                      {earning.commissionAmount}
-                                    </span>
-                                  </div> */}
-                                  <div className="flex justify-between">
-                                    <span>Net Amount</span>
-                                    <span className="font-semibold text-foreground">
-                                      {earning.netAmount}
-                                    </span>
-                                  </div>
-                                  <div className="flex justify-between">
-                                    <span>Payment Date</span>
-                                    <span className="font-semibold text-foreground">
-                                      {earning.paymentDate}
-                                    </span>
-                                  </div>
-                                  <div className="flex justify-between">
-                                    <span>Payment Method</span>
-                                    <span className="font-semibold text-foreground">
-                                      {earning.paymentMethod}
-                                    </span>
-                                  </div>
-                                  <div className="flex justify-between">
-                                    <span>Transaction Ref</span>
-                                    <span className="font-semibold text-foreground">
-                                      {earning.transactionRef}
-                                    </span>
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={!canGoPrevEarnings}
-                            onClick={() =>
-                              setEarningsPage((prev) => Math.max(1, prev - 1))
-                            }
-                          >
-                            Previous
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={!canGoNextEarnings}
-                            onClick={() =>
-                              setEarningsPage((prev) => prev + 1)
-                            }
-                          >
-                            Next
-                          </Button>
-                          <span className="text-xs text-muted-foreground">
-                            Page {earningsPage}
-                            {earningsTotalPages
-                              ? ` of ${earningsTotalPages}`
-                              : ""}
-                          </span>
-                        </div>
-                      </CardContent>
-                    </Card>
+                    {/* Earnings */}
+{/* Earnings Detail Dialog */}
+{/* Crop Detail Dialog */}
+{/* <Dialog open={selectedCrop !== null} onOpenChange={(open) => { if (!open) setSelectedCrop(null); }}>
+  <DialogContent className="sm:max-w-[480px] max-h-[90vh] overflow-y-auto">
+    <DialogHeader>
+      <DialogTitle className="text-base font-semibold">{selectedCrop?.productName}</DialogTitle>
+      <DialogDescription className="text-xs text-muted-foreground">{selectedCrop?.categoryName}</DialogDescription>
+    </DialogHeader>
+    {selectedCrop && (
+      <div className="space-y-4">
+        {selectedCrop.cropPhotoUrl ? (
+          <img src={selectedCrop.cropPhotoUrl} alt={selectedCrop.productName} className="w-full h-48 object-cover rounded-xl" />
+        ) : (
+          <div className="w-full h-24 bg-muted/40 flex items-center justify-center text-xs uppercase tracking-widest text-muted-foreground rounded-xl">No Photo</div>
+        )}
+        <div className="grid grid-cols-3 rounded-xl overflow-hidden border border-border">
+          <div className="px-4 py-3">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-0.5">Quantity</p>
+            <p className="font-medium text-foreground">{selectedCrop.quantity}</p>
+          </div>
+          <div className="px-4 py-3 border-x border-border">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-0.5">Grade</p>
+            <p className="font-medium text-foreground">{selectedCrop.grade}</p>
+          </div>
+          <div className="px-4 py-3">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-0.5">Ready</p>
+            <p className="font-medium text-foreground flex items-center gap-1.5">
+              {selectedCrop.isReady && <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />}
+              {selectedCrop.isReady ? "Yes" : "No"}
+            </p>
+          </div>
+        </div>
+        <div className="rounded-xl border border-border divide-y divide-border text-sm">
+          <div className="flex justify-between items-center px-4 py-2.5">
+            <span className="text-muted-foreground">Status</span>
+            <Badge variant="outline" className={
+              selectedCrop.status === "available" ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+              : selectedCrop.status === "pending" ? "bg-amber-50 text-amber-700 border-amber-200"
+              : selectedCrop.status === "picked_up" ? "bg-blue-50 text-blue-700 border-blue-200"
+              : "bg-muted text-muted-foreground border-transparent"
+            }>{selectedCrop.statusLabel}</Badge>
+          </div>
+          <div className="flex justify-between items-center px-4 py-2.5">
+            <span className="text-muted-foreground">Expected price</span>
+            <span className="font-medium text-foreground">{selectedCrop.expectedPrice}</span>
+          </div>
+          <div className="flex justify-between items-center px-4 py-2.5">
+            <span className="text-muted-foreground">Harvest date</span>
+            <span className="font-medium text-foreground">{selectedCrop.harvestDate}</span>
+          </div>
+          {selectedCrop.SegmentName !== "--" && (
+            <div className="flex justify-between items-center px-4 py-2.5">
+              <span className="text-muted-foreground">Segment</span>
+              <span className="font-medium text-foreground">{selectedCrop.SegmentName}</span>
+            </div>
+          )}
+        </div>
+        {selectedCrop.remarks && (
+          <div className="rounded-xl bg-muted/20 px-4 py-3">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Remarks</p>
+            <p className="text-sm text-foreground">{selectedCrop.remarks}</p>
+          </div>
+        )}
+      </div>
+    )}
+    <DialogFooter>
+      <Button variant="outline" onClick={() => setSelectedCrop(null)}>Close</Button>
+    </DialogFooter>
+  </DialogContent>
+</Dialog> */}
+
+{/* Crops Card Grid */}
+<Card className="border-none ring-1 ring-border shadow-sm bg-white/70 backdrop-blur-sm">
+  <CardHeader className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between border-b bg-muted/30">
+    <CardTitle className="text-sm font-semibold">Crops</CardTitle>
+    <span className="text-xs uppercase tracking-widest text-muted-foreground">{cropRows.length} total</span>
+  </CardHeader>
+  <CardContent className="space-y-4 pt-4">
+    {cropsLoading ? (
+      <div className="text-sm text-muted-foreground">Loading crops...</div>
+    ) : cropRows.length === 0 ? (
+      <div className="text-sm text-muted-foreground">{cropsError || "No crops found."}</div>
+    ) : (
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {cropRows.map((crop) => (
+          <div
+            key={crop.id}
+            onClick={() => setSelectedCrop(crop)}
+            className="group relative rounded-xl border border-border bg-card shadow-sm hover:shadow-md hover:border-primary/30 transition-all duration-200 cursor-pointer overflow-hidden"
+          >
+            {/* Eye icon */}
+            <button
+              onClick={(e) => { e.stopPropagation(); setSelectedCrop(crop); }}
+              className="absolute top-2.5 right-2.5 z-10 flex items-center justify-center w-7 h-7 rounded-full bg-background/80 border border-border shadow-sm  duration-200 hover:bg-primary hover:text-white hover:border-primary cursor-pointer"
+            >
+              <IconEye className="size-3.5" />
+            </button>
+
+            {/* Crop photo */}
+            {crop.cropPhotoUrl ? (
+              <img
+                src={crop.cropPhotoUrl}
+                alt={crop.productName}
+                className="w-full h-28 object-cover"
+              />
+            ) : (
+              <div className="w-full h-16 bg-muted/40 flex items-center justify-center text-[10px] uppercase tracking-widest text-muted-foreground">
+                No Photo
+              </div>
+            )}
+
+            {/* Content */}
+            <div className="p-3 space-y-2.5">
+              {/* Title + badge */}
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-foreground truncate">{crop.productName}</p>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider truncate">{crop.categoryName}</p>
+                </div>
+                <Badge
+                  variant="outline"
+                  className={`shrink-0 text-[10px] ${
+                    crop.status === "available" ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                    : crop.status === "pending" ? "bg-amber-50 text-amber-700 border-amber-200"
+                    : crop.status === "picked_up" ? "bg-blue-50 text-blue-700 border-blue-200"
+                    : "bg-muted text-muted-foreground border-transparent"
+                  }`}
+                >
+                  {crop.statusLabel}
+                </Badge>
+              </div>
+
+              {/* Stats row */}
+              <div className="grid grid-cols-3 divide-x divide-border rounded-lg bg-muted/30 overflow-hidden">
+                <div className="px-2 py-1.5 text-center">
+                  <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Qty</p>
+                  <p className="text-xs font-semibold text-foreground truncate">{crop.quantity}</p>
+                </div>
+                <div className="px-2 py-1.5 text-center">
+                  <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Grade</p>
+                  <p className="text-xs font-semibold text-foreground">{crop.grade}</p>
+                </div>
+                <div className="px-2 py-1.5 text-center">
+                  <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Ready</p>
+                  <p className="text-xs font-semibold text-foreground flex items-center justify-center gap-1">
+                    {crop.isReady && <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />}
+                    {crop.isReady ? "Yes" : "No"}
+                  </p>
+                </div>
+              </div>
+
+              {/* Price + harvest */}
+              <div className="flex items-center justify-between text-xs pt-0.5">
+                <span className="text-muted-foreground">{crop.harvestDate}</span>
+                <span className="font-semibold text-foreground">{crop.expectedPrice}</span>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    )}
+  </CardContent>
+</Card>
+
+{/* Earnings Card with Table */}
+{/* Earnings Detail Dialog */}
+<Dialog open={selectedEarning !== null} onOpenChange={(open) => { if (!open) setSelectedEarning(null); }}>
+  <DialogContent className="sm:max-w-[480px] max-h-[90vh] overflow-y-auto">
+    <DialogHeader>
+      <div className="flex justify-between pe-5 items-center">
+         <div>
+      <DialogTitle className="text-base font-semibold font-mono">{selectedEarning?.transactionId}</DialogTitle>
+      <DialogDescription className="text-xs text-muted-foreground">Earnings Detail</DialogDescription>
+      </div>
+      <div>
+         <div className="flex   gap-1 items-center">
+          <Badge variant="outline" className="bg-muted text-muted-foreground border-transparent text-[10px]">
+      {selectedEarning?.categoryName}
+    </Badge>
+    <Badge variant="outline" className="bg-violet-50 text-violet-700 border-violet-200 text-[10px]">
+      {selectedEarning?.productName}
+    </Badge>
+  </div>
+      </div>
+      </div>
+     
+      
+    </DialogHeader>
+    {selectedEarning && (
+      <div className="space-y-4">
+        <div className="grid grid-cols-3 rounded-xl overflow-hidden border border-border">
+          <div className="px-4 py-3">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-0.5">Quantity</p>
+            <p className="font-medium text-foreground">{selectedEarning.quantitySupplied}</p>
+          </div>
+          <div className="px-4 py-3 border-x border-border">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-0.5">Price / kg</p>
+            <p className="font-medium text-foreground">{selectedEarning.pricePerKg}</p>
+          </div>
+          <div className="px-4 py-3">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-0.5">Method</p>
+            <p className="font-medium text-foreground capitalize">{selectedEarning.paymentMethod}</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 rounded-xl overflow-hidden border border-border bg-muted/20">
+          <div className="px-4 py-3">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-0.5">Total amount</p>
+            <p className="text-sm font-semibold text-foreground">{selectedEarning.totalAmount}</p>
+          </div>
+          <div className="px-4 py-3 border-l border-border">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-0.5">Net amount</p>
+            <p className="text-sm font-semibold text-emerald-600">{selectedEarning.netAmount}</p>
+          </div>
+        </div>
+        <div className="rounded-xl border border-border divide-y divide-border text-sm">
+          <div className="flex justify-between items-center px-4 py-2.5">
+            <span className="text-muted-foreground">Payment status</span>
+            <Badge variant="outline" className={
+              selectedEarning.paymentStatus === "paid"
+                ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                : "bg-amber-50 text-amber-700 border-amber-200"
+            }>{selectedEarning.paymentStatusLabel}</Badge>
+          </div>
+          <div className="flex justify-between items-center px-4 py-2.5">
+            <span className="text-muted-foreground">Payment date</span>
+            <span className="font-medium text-foreground">{selectedEarning.paymentDate}</span>
+          </div>
+          <div className="flex justify-between items-center px-4 py-2.5">
+            <span className="text-muted-foreground">Transaction ref</span>
+            <span className="font-medium text-foreground font-mono text-xs">{selectedEarning.transactionRef}</span>
+          </div>
+          {/* <div className="flex justify-between items-center px-4 py-2.5">
+            <span className="text-muted-foreground">Category</span>
+            <span className="text-muted-foreground text-xs">{selectedEarning.categoryName}</span>
+          </div>
+          <div className="flex justify-between items-center px-4 py-2.5">
+            <span className="text-muted-foreground">Product</span>
+            <span className="text-muted-foreground text-xs">{selectedEarning.productName}</span>
+          </div> */}
+        </div>
+        {selectedEarning.remarks && (
+          <div className="rounded-xl bg-muted/20 px-4 py-3">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Remarks</p>
+            <p className="text-sm text-foreground">{selectedEarning.remarks}</p>
+          </div>
+        )}
+      </div>
+    )}
+    <DialogFooter>
+      <Button variant="outline" onClick={() => setSelectedEarning(null)}>Close</Button>
+    </DialogFooter>
+  </DialogContent>
+</Dialog>
+
+{/* Earnings Card Grid */}
+<Card className="border-none ring-1 ring-border shadow-sm bg-white/70 backdrop-blur-sm">
+  <CardHeader className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between border-b bg-muted/30">
+    <div>
+      <CardTitle className="text-sm font-semibold">Earnings History</CardTitle>
+      <p className="text-xs text-muted-foreground">{getEarningsDateLabel()}</p>
+    </div>
+    <div className="flex items-center gap-2">
+      <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">Paid</Badge>
+      <span className="text-xs uppercase tracking-widest text-muted-foreground">{earningsRows.length} items</span>
+    </div>
+  </CardHeader>
+  <CardContent className="space-y-4 pt-4">
+    {earningsLoading ? (
+      <div className="text-sm text-muted-foreground">Loading earnings...</div>
+    ) : earningsRows.length === 0 ? (
+      <div className="text-sm text-muted-foreground">{earningsError || "No earnings found."}</div>
+    ) : (
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {earningsRows.map((earning) => (
+          <div
+            key={earning.id}
+            onClick={() => setSelectedEarning(earning)}
+            className="group relative rounded-xl border border-border bg-card shadow-sm hover:shadow-md hover:border-primary/30 transition-all duration-200 cursor-pointer overflow-hidden"
+          >
+            {/* Eye icon */}
+            <button onClick={(e) => { e.stopPropagation(); setSelectedEarning(earning); }} className="absolute top-2.5 right-2.5 z-10 flex items-center justify-center w-7 h-7 rounded-full bg-background/80 border border-border shadow-sm  transition-opacity duration-200 hover:bg-primary hover:text-white hover:border-primary cursor-pointer">
+              <IconEye className="size-3.5" />
+            </button>
+
+            <div className="p-3 space-y-2.5">
+              {/* Transaction ID + status */}
+              <div className="flex items-start justify-between gap-2 pr-8">
+                <div className="min-w-0">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Transaction</p>
+                  <p className="text-sm font-semibold text-foreground font-mono truncate">{earning.transactionId}</p>
+                  <p className="text-[10px] text-muted-foreground truncate">{earning.productName}</p>
+                </div>
+                <Badge
+                  variant="outline"
+                  className={`shrink-0 text-[10px] ${
+                    earning.paymentStatus === "paid"
+                      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                      : "bg-amber-50 text-amber-700 border-amber-200"
+                  }`}
+                >
+                  {earning.paymentStatusLabel}
+                </Badge>
+              </div>
+
+              {/* Amounts */}
+              <div className="grid grid-cols-2 divide-x divide-border rounded-lg bg-muted/30 overflow-hidden">
+                <div className="px-2 py-1.5">
+                  <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Total</p>
+                  <p className="text-xs font-semibold text-foreground">{earning.totalAmount}</p>
+                </div>
+                <div className="px-2 py-1.5">
+                  <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Net</p>
+                  <p className="text-xs font-semibold text-emerald-600">{earning.netAmount}</p>
+                </div>
+              </div>
+
+              {/* Qty / Price / Method */}
+              <div className="grid grid-cols-3 divide-x divide-border rounded-lg bg-muted/20 overflow-hidden">
+                <div className="px-2 py-1.5 text-center">
+                  <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Qty</p>
+                  <p className="text-xs font-semibold text-foreground">{earning.quantitySupplied}</p>
+                </div>
+                <div className="px-2 py-1.5 text-center">
+                  <p className="text-[9px] uppercase tracking-wider text-muted-foreground">₹/kg</p>
+                  <p className="text-xs font-semibold text-foreground">{earning.pricePerKg}</p>
+                </div>
+                <div className="px-2 py-1.5 text-center">
+                  <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Method</p>
+                  <p className="text-xs font-semibold text-foreground capitalize truncate">{earning.paymentMethod}</p>
+                </div>
+              </div>
+
+              {/* Date */}
+              <div className="flex items-center justify-between text-xs pt-0.5">
+                <span className="text-muted-foreground">{earning.categoryName}</span>
+                <span className="text-muted-foreground">{earning.paymentDate}</span>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    )}
+
+    {/* Pagination */}
+    <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
+      <span>Page <span className="font-semibold text-foreground">{earningsPage}</span>{earningsTotalPages ? ` of ${earningsTotalPages}` : ""}</span>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button size="sm" variant="outline" disabled={!canGoPrevEarnings} onClick={() => setEarningsPage((prev) => Math.max(1, prev - 1))}>Previous</Button>
+        <Button size="sm" variant="outline" disabled={!canGoNextEarnings} onClick={() => setEarningsPage((prev) => prev + 1)}>Next</Button>
+      </div>
+    </div>
+  </CardContent>
+</Card>
 
                     {/* Bank Details */}
                     {/* <Card className="border-none ring-1 ring-border shadow-sm bg-white/70 backdrop-blur-sm">
@@ -1803,10 +2077,12 @@ function PhotoCard({
   title,
   src,
   alt,
+  onPreview,
 }: {
   title: string;
   src: string;
   alt: string;
+  onPreview?: (src: string, title: string) => void;
 }) {
   return (
     <Card className="border-none ring-1 ring-border shadow-sm bg-white/70 backdrop-blur-sm overflow-hidden">
@@ -1815,12 +2091,21 @@ function PhotoCard({
       </CardHeader>
       <CardContent className="p-4">
         {src ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={src}
-            alt={alt}
-            className="h-56 w-full rounded-xl object-cover"
-          />
+          <div className="relative group">
+            <img
+              src={src}
+              alt={alt}
+              className="h-56 w-full rounded-xl object-cover"
+            />
+            <button
+              type="button"
+              onClick={() => onPreview?.(src, title)}
+              className="absolute top-2 right-2 flex items-center justify-center w-8 h-8 rounded-full bg-black/50 text-white backdrop-blur-sm  "
+              aria-label="View full image"
+            >
+              <IconMaximize className="size-4" />
+            </button>
+          </div>
         ) : (
           <div className="flex h-56 items-center justify-center rounded-xl border border-dashed text-xs uppercase tracking-widest text-muted-foreground">
             No Photo
@@ -1895,9 +2180,21 @@ function normalizeFarmerDetail(raw: any, fallbackId: string) {
     allocatedLandValue
   );
 
-  const totalSupplies =
-    raw?.total_supplies != null ? String(raw.total_supplies) : "--";
+  const totalSupplies = formatSupplyWeight(raw?.total_supplies);
   const earnings = formatRupees(raw?.total_earnings ?? raw?.earnings);
+  function formatSupplyWeight(value: any) {
+  const n = toNumber(value);
+  if (n === null) return "--";
+  if (n > 9999) {
+    const tonnes = n / 1000;
+    const formatted =
+      tonnes % 1 === 0
+        ? tonnes.toLocaleString("en-IN")
+        : tonnes.toLocaleString("en-IN", { maximumFractionDigits: 2 });
+    return `${formatted} T`;
+  }
+  return `${n.toLocaleString("en-IN")} Kg`;
+}
   const aadharNumber = raw?.aadhar_number ?? "--";
 
   const createdAt = formatDateTime(raw?.created_at);
@@ -1961,10 +2258,12 @@ function normalizeFarmerDetail(raw: any, fallbackId: string) {
 function normalizeCrop(raw: any, index: number) {
   const id = raw?.crop_id ?? raw?.id ?? `crop-${index + 1}`;
   const productId = raw?.product_id ?? raw?.productId ?? "--";
+  const productName = raw?.product?.product_name ?? "Unknown Crop";
+  const categoryName = raw?.product?.category?.category_name ?? "--";
   const quantity = raw?.quantity_kg ? `${raw.quantity_kg} kg` : "--";
   const grade = raw?.grade ?? "--";
   const expectedPrice = raw?.expected_price_per_kg
-    ? `Rs ${Number(raw.expected_price_per_kg).toLocaleString("en-IN")}/kg`
+    ? `₹${Number(raw.expected_price_per_kg).toLocaleString("en-IN")}/kg`
     : "--";
   const harvestDate = raw?.harvest_date
     ? formatDateOnly(new Date(raw.harvest_date))
@@ -1972,12 +2271,24 @@ function normalizeCrop(raw: any, index: number) {
   const status = raw?.status ?? "--";
   const statusLabel = String(status).replaceAll("_", " ");
   const isReady = Boolean(raw?.is_ready);
+  const remarks = raw?.remarks ?? "";
   const SegmentName =
-    raw?.Segment?.crop_name ?? raw?.Segment?.Segment_name ?? "--";
+    raw?.segment?.crop_name ?? raw?.segment?.segment_name ?? "--";
+
+  // Parse JSON array for photo URL
+  let cropPhotoUrl = "";
+  try {
+    const photos = JSON.parse(raw?.crop_photo_url ?? "[]");
+    cropPhotoUrl = Array.isArray(photos) && photos.length > 0 ? photos[0] : "";
+  } catch {
+    cropPhotoUrl = typeof raw?.crop_photo_url === "string" ? raw.crop_photo_url : "";
+  }
 
   return {
     id: String(id),
     productId: String(productId),
+    productName,
+    categoryName,
     quantity,
     grade,
     expectedPrice,
@@ -1985,7 +2296,9 @@ function normalizeCrop(raw: any, index: number) {
     status: String(status),
     statusLabel,
     isReady,
+    remarks,
     SegmentName,
+    cropPhotoUrl,
   };
 }
 
@@ -1993,30 +2306,31 @@ function normalizeEarning(raw: any, index: number) {
   const id = raw?.earning_id ?? raw?.id ?? `earning-${index + 1}`;
   const cropId = raw?.crop_id ?? raw?.crop?.crop_id ?? "--";
   const pickupId = raw?.pickup_delivery_id ?? raw?.pickup_id ?? "--";
-  const quantitySupplied =
-    raw?.quantity_supplied_kg != null
-      ? `${raw.quantity_supplied_kg} kg`
-      : "--";
-  const pricePerKg =
-    raw?.price_per_kg != null
-      ? `Rs ${Number(raw.price_per_kg).toLocaleString("en-IN")}/kg`
-      : "--";
+  const productName = raw?.crop?.product?.product_name ?? "Unknown Product";
+  const categoryName = raw?.crop?.product?.category?.category_name ?? "--";
+  const quantitySupplied = raw?.quantity_supplied_kg != null
+    ? `${raw.quantity_supplied_kg} kg` : "--";
+  const pricePerKg = raw?.price_per_kg != null
+    ? `₹${Number(raw.price_per_kg).toLocaleString("en-IN")}/kg` : "--";
   const totalAmount = formatRupees(raw?.total_amount);
-  const commissionAmount =
-    raw?.commission_amount != null
-      ? `Rs ${Number(raw.commission_amount).toLocaleString("en-IN")} (${raw?.commission_percentage ?? "--"}%)`
-      : "--";
+  const commissionAmount = raw?.commission_amount != null
+    ? `₹${Number(raw.commission_amount).toLocaleString("en-IN")} (${raw?.commission_percentage ?? "--"}%)`
+    : "--";
   const netAmount = formatRupees(raw?.net_amount);
   const paymentStatus = raw?.payment_status ?? "--";
   const paymentStatusLabel = String(paymentStatus).replaceAll("_", " ");
   const paymentDate = formatDateTime(raw?.payment_date);
   const paymentMethod = raw?.payment_method ?? "--";
   const transactionRef = raw?.transaction_reference ?? "--";
+  const transactionId = raw?.transaction_id ?? "--";
+  const remarks = raw?.remarks ?? "";
 
   return {
     id: String(id),
     cropId: String(cropId),
     pickupId: String(pickupId),
+    productName,
+    categoryName,
     quantitySupplied,
     pricePerKg,
     totalAmount,
@@ -2027,6 +2341,8 @@ function normalizeEarning(raw: any, index: number) {
     paymentDate,
     paymentMethod,
     transactionRef,
+    transactionId,
+    remarks,
   };
 }
 
@@ -2198,4 +2514,12 @@ function computeProfileCompleteness(values: any[]) {
     (v) => v !== null && v !== undefined && v !== "" && v !== "--"
   ).length;
   return Math.round((filled / values.length) * 100);
+}
+
+export default function FarmerDetailPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <FarmerDetailPageContent />
+    </Suspense>
+  );
 }
