@@ -674,7 +674,8 @@ const [photoPreviewSrc, setPhotoPreviewSrc] = useState<{ src: string; title: str
                 >
                   Last Login {normalized.lastLogin}
                 </Badge>
-                <Button
+
+                {/* <Button
                   variant="outline"
                   size="sm"
                   onClick={() => setIsEditOpen(true)}
@@ -714,7 +715,8 @@ const [photoPreviewSrc, setPhotoPreviewSrc] = useState<{ src: string; title: str
                 >
                   <IconTrash className="mr-1.5 size-4" />
                   {isProcessing ? "Deleting..." : "Delete"}
-                </Button>
+                </Button> */}
+                
                 <Button asChild variant="outline" size="sm">
                   <Link href="/farmer-management" className="gap-2">
                     <IconArrowLeft className="size-4" />
@@ -1113,12 +1115,12 @@ const [photoPreviewSrc, setPhotoPreviewSrc] = useState<{ src: string; title: str
                                       {Segment.expectedHarvestDate}
                                     </span>
                                   </div>
-                                  {/* <div className="flex justify-between">
+                                  <div className="flex justify-between">
                                     <span>Expected Yield</span>
                                     <span className="font-semibold text-foreground">
                                       {Segment.expectedYield}
                                     </span>
-                                  </div> */}
+                                  </div>
                                   {/* <div className="flex justify-between">
                                     <span>Actual Yield</span>
                                     <span className="font-semibold text-foreground">
@@ -2405,6 +2407,12 @@ function normalizeSegment(raw: any, index: number) {
     ? formatDateOnly(new Date(raw.harvesting_date))
     : "--";
 
+  const expectedYieldValue = toNumber(raw?.expected_yield_value);
+  const expectedYield =
+    expectedYieldValue !== null
+      ? `${expectedYieldValue} ${raw?.expected_yield_unit ?? "kg"}`
+      : "--";
+
   return {
     id: String(id),
     name,
@@ -2414,6 +2422,7 @@ function normalizeSegment(raw: any, index: number) {
     cropName,
     plantingDate,
     expectedHarvestDate,
+    expectedYield,
   };
 }
 

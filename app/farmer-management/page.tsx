@@ -328,7 +328,7 @@ const exportFarmersToExcel = () => {
                 <div className="relative w-full md:w-96">
                   <IconSearch className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
-                    placeholder="Search by name, state, district, city..."
+                    placeholder="Search by name, phone, state, district, city..."
                     className="pl-9 bg-white dark:bg-card focus-visible:ring-primary"
                     value={search}
                     onChange={(e) => handleSearchChange(e.target.value)}
@@ -499,7 +499,7 @@ const exportFarmersToExcel = () => {
                                     <span className="sr-only">View farmer</span>
                                   </Link>
                                 </Button>
-                                <Button
+                                {/* <Button
                                   size="sm"
                                   variant="outline"
                                   className={
@@ -521,7 +521,7 @@ const exportFarmersToExcel = () => {
                                     : farmer.isActive
                                     ? "Deactivate"
                                     : "Activate"}
-                                </Button>
+                                </Button> */}
                               </div>
                             </TableCell>
                           </TableRow>

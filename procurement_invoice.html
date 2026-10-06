@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>APOM Payment Receipt</title>
+  <!-- Load Inter and Caveat from Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Caveat:wght@600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary-blue: #0f4c81;       /* Accent blue color from reference */
+      --text-black: #000000;
+      --text-dark: #333333;
+      --text-muted: #555555;
+      --border-light: #e0e0e0;
+      --border-dark: #888888;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      color: var(--text-black);
+      background-color: #f5f5f5;
+      padding: 40px 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    /* Standard A4 Aspect Ratio Container */
+    .receipt-card {
+      width: 100%;
+      max-width: 820px;
+      background-color: #ffffff;
+      padding: 45px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+      border: 1px solid #e0e0e0;
+      position: relative;
+    }
+
+    @media print {
+      body {
+        background-color: #ffffff;
+        padding: 0;
+      }
+      .receipt-card {
+        border: none;
+        box-shadow: none;
+        padding: 0;
+        max-width: 100%;
+      }
+      * {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+    }
+
+    /* Top Small Caption */
+    .top-caption {
+      text-align: left;
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    /* Header Styling */
+    .receipt-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 25px;
+      border-bottom: 1px solid var(--text-black);
+      padding-bottom: 20px;
+    }
+
+    .header-left {
+      max-width: 60%;
+    }
+
+    .header-right {
+      text-align: right;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      max-width: 38%;
+    }
+
+    .doc-type {
+      font-weight: bold;
+      font-size: 18px;
+      color: var(--primary-blue);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+      line-height: 1.2;
+    }
+
+    .receipt-metadata {
+      font-size: 11px;
+      line-height: 1.6;
+      color: var(--text-dark);
+      text-align: right;
+    }
+
+    .receipt-metadata strong {
+      font-weight: 700;
+    }
+
+    .company-title {
+      font-weight: bold;
+      font-size: 18px;
+      margin-bottom: 6px;
+      line-height: 1.2;
+    }
+
+    .company-details {
+      font-size: 11px;
+      color: var(--text-dark);
+      line-height: 1.5;
+    }
+
+    .logo-container {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      margin-bottom: 12px;
+    }
+
+    /* Details block (Customer Only) */
+    .addresses-section {
+      font-size: 11px;
+      line-height: 1.6;
+      margin-bottom: 15px;
+      margin-top: 15px;
+    }
+
+    .address-title {
+      font-weight: bold;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      font-size: 10px;
+      letter-spacing: 0.02em;
+    }
+
+    .address-name {
+      font-weight: bold;
+      font-size: 12px;
+      margin-bottom: 2px;
+    }
+
+    .place-of-supply {
+      font-size: 11px;
+      font-weight: bold;
+      border-top: 1px solid var(--border-light);
+      padding-top: 8px;
+      margin-bottom: 25px;
+    }
+
+    /* Product Table */
+    .table-section {
+      margin-bottom: 15px;
+    }
+
+    .receipt-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+    }
+
+    .receipt-table th {
+      font-weight: bold;
+      padding: 8px 4px;
+      border-top: 1px solid var(--text-black);
+      border-bottom: 1px solid var(--text-black);
+      text-align: left;
+      color: var(--text-dark);
+    }
+
+    .receipt-table td {
+      padding: 12px 4px;
+      border-bottom: 1px solid var(--border-light);
+      vertical-align: top;
+      line-height: 1.5;
+    }
+
+    .align-center {
+      text-align: center;
+    }
+
+    .align-right {
+      text-align: right;
+    }
+
+    .item-title {
+      font-weight: bold;
+      font-size: 11.5px;
+      margin-bottom: 4px;
+    }
+
+    .item-subtext {
+      color: var(--text-muted);
+      font-size: 10.5px;
+      padding-left: 2px;
+    }
+
+    /* Totals/Wastage Row underneath table */
+    .totals-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      padding: 12px 4px;
+      border-bottom: 1px solid var(--text-black);
+      margin-bottom: 15px;
+      background-color: #fafafa;
+    }
+
+    .wastage-box {
+      line-height: 1.6;
+    }
+
+    .wastage-title {
+      font-weight: bold;
+      color: #b91c1c; /* Crimson text for wastage attention */
+      font-size: 11px;
+      text-transform: uppercase;
+      margin-bottom: 2px;
+    }
+
+    /* Calculations summary */
+    .summary-section {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      margin-bottom: 25px;
+      font-size: 11px;
+    }
+
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      width: 280px;
+      padding: 4px 0;
+    }
+
+    .summary-row.total-bold {
+      font-weight: bold;
+      font-size: 13px;
+      border-top: 1px solid var(--text-black);
+      border-bottom: 1px solid var(--text-black);
+      padding: 8px 0;
+      margin-top: 4px;
+    }
+
+    .amount-payable-row {
+      font-weight: bold;
+      font-size: 11.5px;
+      text-align: right;
+      width: 100%;
+      border-bottom: 1px solid var(--border-light);
+      padding-bottom: 15px;
+      margin-bottom: 25px;
+    }
+
+    /* Bottom section: Payment Details & Stamp */
+    .bottom-layout {
+      display: grid;
+      grid-template-columns: 1.5fr 1fr;
+      gap: 40px;
+      font-size: 11px;
+      line-height: 1.5;
+      margin-bottom: 30px;
+    }
+
+    .bottom-title {
+      font-weight: bold;
+      margin-bottom: 8px;
+      font-size: 11px;
+    }
+
+    .payment-details-list {
+      line-height: 1.6;
+    }
+
+    .payment-details-list strong {
+      font-weight: 500;
+      display: inline-block;
+      width: 110px;
+      color: var(--text-muted);
+    }
+
+    /* Authorised Signatory alignment (no circular seal) */
+    .signature-area {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-end;
+      text-align: center;
+      height: 100%;
+    }
+
+    .for-company {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-bottom: 20px;
+    }
+
+    .handwritten-sig {
+      font-family: 'Caveat', cursive;
+      font-size: 26px;
+      color: #1e3a8a; /* Soft ink blue signature */
+      height: 35px;
+      line-height: 35px;
+      margin-bottom: 2px;
+    }
+
+    .signature-line {
+      width: 100%;
+      border-top: 1px solid var(--text-black);
+      margin-bottom: 8px;
+    }
+
+    .signatory-label {
+      font-size: 11px;
+      color: var(--text-dark);
+    }
+
+    /* Notes section (no Terms & Conditions list) */
+    .notes-section {
+      font-size: 10px;
+      line-height: 1.5;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border-light);
+      padding-bottom: 15px;
+      margin-bottom: 15px;
+    }
+
+    .notes-title {
+      font-weight: bold;
+      color: var(--text-dark);
+      margin-bottom: 4px;
+    }
+
+    /* Page Footer Info */
+    .page-footer {
+      display: flex;
+      justify-content: space-between;
+      font-size: 9px;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="receipt-card">
+    
+
+    <!-- Header -->
+    <div class="receipt-header" style="display: block;">
+      <!-- Row 1: Logo, Company Name, and Payment Receipt Title on the same level -->
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; width: 100%;">
+        <!-- Logo and Name Flex Container with gap 5px -->
+        <div style="display: flex; align-items: center; gap: 5px;">
+          <img src="./public/APOM%20logo.png" alt="APOM Logo" style="height: 46px; width: auto; display: block;">
+          <div class="company-title" style="margin-bottom: 0;">Agriculture Product Open Market</div>
+        </div>
+        <div class="doc-type" style="margin-bottom: 0;">Payment Receipt</div>
+      </div>
+      
+      <!-- Row 2: Company Details & Receipt Metadata -->
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%;">
+        <div class="company-details" style="max-width: 60%;">
+          <div># 290, 2nd Floor, Andrahalli Main Road, Gruhalakshmi Layout,</div>
+          <div>Bangalore-560073</div>
+          <div>Mobile: 9019814347 | Email: apomlogistics1@gmail.com</div>
+        </div>
+        <div class="receipt-metadata" style="text-align: right; max-width: 38%;">
+          <div><strong>Receipt #:</strong> APOM-REC-1</div>
+          <div><strong>Receipt Date:</strong> 16 Jun 2023</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Farmer Details -->
+    <div class="addresses-section" style="margin-bottom: 25px;">
+      <div class="address-title">Farmer Details:</div>
+      <div class="address-name">Amit Agarwal</div>
+      <div>Ph: 9999999999</div>
+      <div><strong>Address:</strong> Babuganj, Hasanganj, Lucknow, UTTARPRADESH, 226007</div>
+    </div>
+
+    <!-- Items Table (Contains: Product Name, Grade, Quantity, Amount per kg, Total Amount) -->
+    <div class="table-section">
+      <table class="receipt-table">
+        <thead>
+          <tr>
+            <th style="width: 5%;">#</th>
+            <th style="width: 47%;">Product Name</th>
+            <th style="width: 12%; text-align: center;">Grade</th>
+            <th style="width: 12%; text-align: center;">Quantity (Kg)</th>
+            <th style="width: 12%; text-align: right;">Amount per Kg</th>
+            <th style="width: 12%; text-align: right;">Total Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>1</td>
+            <td>
+              <div class="item-title">Fresh Premium Mangoes</div>
+            </td>
+            <td class="align-center">A</td>
+            <td class="align-center">1425</td>
+            <td class="align-right">95.00</td>
+            <td class="align-right">1,35,375.00</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Wastage & Summary Section Immediately Under the Table -->
+    <div class="totals-row">
+      <div class="wastage-box">
+        <div class="wastage-title">Wastage Details:</div>
+        <div><strong>Wastage Quantity:</strong> 75 Kg (5% of gross procurement)</div>
+      </div>
+      <div style="text-align: right; line-height: 1.6; display: flex; align-items: center; justify-content: flex-end;">
+        <div><strong>Total Qty:</strong> 1425.000 kg</div>
+      </div>
+    </div>
+
+    <!-- Calculations Summary -->
+    <div class="summary-section" style="margin-bottom: 8px;">
+      <div class="summary-row total-bold">
+        <span class="summary-label">Total Amount</span>
+        <span class="summary-value">₹1,35,375.00</span>
+      </div>
+    </div>
+
+    <div style="font-size: 10.5px; color: var(--text-muted); text-align: right; width: 100%; margin-bottom: 15px; line-height: 1.4;">
+      Total in words: INR One Lakh Thirty-Five Thousand Three Hundred and Seventy-Five Only.
+    </div>
+
+    <div class="amount-payable-row">
+      Amount Paid: &nbsp;&nbsp;&nbsp;&nbsp; ₹1,35,375.00
+    </div>
+
+    <!-- Bottom Layout (Payment Details & Stamp) -->
+    <div class="bottom-layout">
+      <!-- Payment Details -->
+      <div>
+        <div class="bottom-title">Payment Details:</div>
+        <div class="payment-details-list">
+          <div><strong>Payment Status:</strong> Paid</div>
+          <div><strong>Payment Method:</strong> Bank Transfer (NEFT)</div>
+          <div><strong>Payment Date:</strong> 16 Jun 2023</div>
+          <div><strong>Transaction ID:</strong> TXN90284710492</div>
+        </div>
+      </div>
+
+      <!-- Stamp and Signatory (Circular Seal Removed) -->
+      <div class="signature-area">
+        <div class="for-company">For APOM</div>
+        <div class="handwritten-sig">Kavitha Manikanth</div>
+        <div class="signature-line"></div>
+        <div class="signatory-label">Authorized Signatory</div>
+      </div>
+    </div>
+
+    <!-- Notes (Terms and Conditions Removed) -->
+    <div class="notes-section">
+      <div class="notes-title">Notes:</div>
+      <div>Thank you for the Business.</div>
+    </div>
+
+    <!-- Page Footer -->
+    <div class="page-footer">
+      <div>Page 1/1</div>
+      <div>This is a digitally signed document.</div>
+    </div>
+
+  </div>
+
+</body>
+</html>

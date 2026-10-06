@@ -402,6 +402,7 @@ function validateEditForm(form: EditFormState): string | null {
                       <Input
                         id="e_full_name"
                         name="full_name"
+                        minLength={4}
                         value={editForm.full_name}
                         onChange={handleEditChange}
                         placeholder="Full name"
@@ -422,7 +423,7 @@ function validateEditForm(form: EditFormState): string | null {
                         required
                       />
                     </div>
-                    <div className="grid gap-2">
+                    {/* <div className="grid gap-2">
                       <Label htmlFor="e_email">Email</Label>
                       <Input
                         id="e_email"
@@ -432,7 +433,7 @@ function validateEditForm(form: EditFormState): string | null {
                         onChange={handleEditChange}
                         placeholder="driver@example.com"
                       />
-                    </div>
+                    </div> */}
                   </div>
                 </section>
 
@@ -522,7 +523,7 @@ function validateEditForm(form: EditFormState): string | null {
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="grid gap-2">
+                    {/* <div className="grid gap-2">
                       <Label>Verification</Label>
                       <Select
                         value={editForm.is_verified ? "true" : "false"}
@@ -538,7 +539,7 @@ function validateEditForm(form: EditFormState): string | null {
                           <SelectItem value="false">Not Verified</SelectItem>
                         </SelectContent>
                       </Select>
-                    </div>
+                    </div> */}
                   </div>
                 </section>
 

@@ -30,6 +30,7 @@ import {
   IconBuildingStore,
   IconLeaf,
   IconChartLine,
+  IconReceipt2,
 } from "@tabler/icons-react";
 import logo from "../public/APOM logo.png";
 import { NavMain } from "@/components/nav-main";
@@ -93,6 +94,11 @@ const data = {
       title: "Order Management",
       url: "/order-management",
       icon: IconShoppingCart,
+    },
+    {
+      title: "Subscription Management",
+      url: "/subscription-management",
+      icon: IconReceipt2,
     },
     {
       title: "Pickups & Deliveries",

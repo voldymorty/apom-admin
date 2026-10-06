@@ -166,6 +166,7 @@ interface TaskDetail {
   estimated_time_minutes: number | null;
   actual_time_minutes: number | null;
   created_at: string;
+  grade_splits?: { grade: string; quantity_kg: number; amount: number }[] | null;
   updated_at: string;
   delivery_person: {
     delivery_person_id: number;
@@ -358,9 +359,24 @@ function FormField({ label, id, children, className = "" }: { label: string; id:
   );
 }
 
+function getGradeSplits(task: TaskDetail): { grade: string; quantity_kg: number; amount: number }[] {
+  const raw = task.grade_splits;
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw;
+  if (typeof raw === "string") {
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
 function InfoRow({ icon, label, value }: { icon?: React.ReactNode; label: string; value: React.ReactNode }) {
   return (
-    <div className="flex items-start gap-2.5">
+    <div className="flex items-start gap-2.5 p-3">
       {icon && <span className="text-muted-foreground mt-0.5 shrink-0">{icon}</span>}
       <div className="min-w-0">
         <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">{label}</p>
@@ -690,6 +706,578 @@ function ProcurementStatusBadge({ status }: { status?: "pending_review" | "final
   return <Badge className="bg-emerald-50 text-emerald-800 border-emerald-200">Finalized</Badge>;
 }
 
+
+// ─── Grade Breakdown Editor ──────────────────────────────────────────────────
+
+type GradeRow = { id: string; grade: string; quantity_kg: string; rate_per_kg: string };
+
+const GRADE_OPTIONS = ["A", "B", "C"];
+
+function makeGradeRow(grade: string, qty = "", rate = ""): GradeRow {
+  return { id: Math.random().toString(36).slice(2), grade, quantity_kg: qty, rate_per_kg: rate };
+}
+
+function GradeBreakdownEditor({
+  rows,
+  setRows,
+  targetQty,
+}: {
+  rows: GradeRow[];
+  setRows: React.Dispatch<React.SetStateAction<GradeRow[]>>;
+  targetQty: number;
+}) {
+  const updateRow = (id: string, patch: Partial<GradeRow>) =>
+    setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+
+  const removeRow = (id: string) =>
+    setRows((prev) => (prev.length > 1 ? prev.filter((r) => r.id !== id) : prev));
+
+  const addRow = () => {
+    const used = new Set(rows.map((r) => r.grade));
+    const nextGrade = GRADE_OPTIONS.find((g) => !used.has(g)) ?? GRADE_OPTIONS[0];
+    setRows((prev) => [...prev, makeGradeRow(nextGrade)]);
+  };
+
+  const allocatedQty = rows.reduce((s, r) => s + (parseFloat(r.quantity_kg) || 0), 0);
+  const totalAmount = rows.reduce(
+    (s, r) => s + (parseFloat(r.quantity_kg) || 0) * (parseFloat(r.rate_per_kg) || 0),
+    0
+  );
+  const diff = +(targetQty - allocatedQty).toFixed(2);
+  const isBalanced = Math.abs(diff) < 0.01 && targetQty > 0;
+
+  return (
+    <div className="rounded-lg border border-border overflow-hidden">
+      <div className="px-3 py-2 bg-muted/30 border-b border-border flex items-center justify-between gap-2">
+        <span className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+          <IconPackage className="size-3.5" /> Grade-wise breakdown
+        </span>
+        {rows.length < GRADE_OPTIONS.length && (
+          <button
+            type="button"
+            onClick={addRow}
+            className="inline-flex items-center gap-1 text-[11px] font-medium text-violet-700 dark:text-violet-400 hover:text-violet-800"
+          >
+            <IconPlus className="size-3.5" /> Add grade
+          </button>
+        )}
+      </div>
+
+      <div className="divide-y divide-border">
+        <div className="grid grid-cols-[64px_1fr_1fr_1fr_24px] gap-2 px-3 py-1.5 bg-muted/10 text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+          <span>Grade</span><span>Qty (kg)</span><span>Rate (₹/kg)</span><span>Amount</span><span />
+        </div>
+        {rows.map((row) => {
+          const amount = (parseFloat(row.quantity_kg) || 0) * (parseFloat(row.rate_per_kg) || 0);
+          return (
+            <div key={row.id} className="grid grid-cols-[64px_1fr_1fr_1fr_24px] gap-2 px-3 py-2 items-center">
+              <Select value={row.grade} onValueChange={(v) => updateRow(row.id, { grade: v })}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {GRADE_OPTIONS.map((g) => <SelectItem key={g} value={g}>{g}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Input
+                type="number" min={0} step="0.01" placeholder="0"
+                value={row.quantity_kg}
+                onChange={(e) => updateRow(row.id, { quantity_kg: e.target.value })}
+                className="h-8 text-xs"
+              />
+              <Input
+                type="number" min={0} step="0.01" placeholder="0"
+                value={row.rate_per_kg}
+                onChange={(e) => updateRow(row.id, { rate_per_kg: e.target.value })}
+                className="h-8 text-xs"
+              />
+              <div className="h-8 flex items-center text-xs font-semibold text-violet-700 dark:text-violet-400">
+                {amount > 0 ? `₹${amount.toLocaleString("en-IN", { maximumFractionDigits: 2 })}` : "—"}
+              </div>
+              {rows.length > 1 ? (
+                <button type="button" onClick={() => removeRow(row.id)} className="text-muted-foreground hover:text-red-600 transition-colors">
+                  <IconX className="size-3.5" />
+                </button>
+              ) : <span />}
+            </div>
+          );
+        })}
+      </div>
+
+      <div className={`px-3 py-2.5 border-t flex items-center justify-between gap-3 text-xs
+        ${isBalanced ? "bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900" : "bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900"}`}>
+        <div className="flex items-center gap-1.5">
+          {isBalanced ? <IconCheck className="size-3.5 text-emerald-600" /> : <IconAlertTriangle className="size-3.5 text-amber-600" />}
+          <span className={isBalanced ? "text-emerald-700 dark:text-emerald-400" : "text-amber-700 dark:text-amber-400"}>
+            Allocated {allocatedQty.toFixed(2)} kg of {targetQty.toFixed(2)} kg accepted
+            {!isBalanced && ` (${diff > 0 ? diff.toFixed(2) + " kg left" : Math.abs(diff).toFixed(2) + " kg over"})`}
+          </span>
+        </div>
+        <span className="font-bold text-violet-900 dark:text-violet-100">
+          Total: ₹ {totalAmount.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// ─── PDF Receipt Generation Helpers ──────────────────────────────────────────
+const mapPaymentMethod = (method?: string | null) => {
+  if (!method) return "Bank Transfer (NEFT)";
+  switch (method) {
+    case "bank_transfer": return "Bank Transfer (NEFT)";
+    case "upi": return "UPI";
+    case "cash": return "Cash";
+    case "cheque": return "Cheque";
+    default: return method;
+  }
+};
+
+const mapPaymentStatus = (status?: string | null) => {
+  if (!status) return "Paid";
+  return status.charAt(0).toUpperCase() + status.slice(1);
+};
+
+function numberToWords(num: number): string {
+  const a = [
+    "", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten",
+    "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"
+  ];
+  const b = ["", "", "Premium", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+  
+  const MathFloor = Math.floor;
+  if ((num = MathFloor(num)) === 0) return "Zero";
+  
+  function g(n: number): string {
+    if (n < 20) return a[n];
+    const digit = n % 10;
+    return b[MathFloor(n / 10)] + (digit ? " " + a[digit] : "");
+  }
+  
+  function c(n: number): string {
+    if (n === 0) return "";
+    if (n < 100) return g(n);
+    return a[MathFloor(n / 100)] + " Hundred" + (n % 100 ? " and " + g(n % 100) : "");
+  }
+  
+  let str = "";
+  let crores = MathFloor(num / 10000000);
+  let lakhs = MathFloor((num % 10000000) / 100000);
+  let thousands = MathFloor((num % 100000) / 1000);
+  let remaining = num % 1000;
+  
+  if (crores) str += c(crores) + " Crore ";
+  if (lakhs) str += c(lakhs) + " Lakh ";
+  if (thousands) str += c(thousands) + " Thousand ";
+  if (remaining) str += c(remaining);
+  
+  return str.trim() + " Rupees Only";
+}
+
+const downloadReceiptPDF = (task: TaskDetail, payload: any) => {
+  const receiptNo = task.delivery_number || `APOM-REC-${task.delivery_id}`;
+  const receiptDateStr = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  
+  const farmerName = task.farmer?.full_name || task.pickup_contact_name || "—";
+  const farmerPhone = task.farmer?.user?.mobile_number || task.pickup_contact_number || "—";
+  const farmerAddress = task.pickup_address || "—";
+  
+  const wastageQty = parseFloat(String(payload.wastage_quantity_kg ?? task.wastage_quantity_kg ?? 0));
+  const acceptedQty = parseFloat(String(payload.accepted_quantity_kg ?? task.accepted_quantity_kg ?? 0));
+  const grossQty = acceptedQty + wastageQty;
+  const wastagePercent = grossQty > 0 ? Math.round((wastageQty / grossQty) * 100) : 0;
+  
+  const finalAmount = parseFloat(String(payload.final_procurement_amount ?? task.final_procurement_amount ?? 0));
+  
+  let tableRowsHtml = "";
+  const productName = task.crop?.product?.product_name || "Fresh Premium Mangoes";
+  
+  if (payload.grade_breakdown && payload.grade_breakdown.length > 0) {
+    payload.grade_breakdown.forEach((item: any, idx: number) => {
+      tableRowsHtml += `
+        <tr>
+          <td>${idx + 1}</td>
+          <td>
+            <div class="item-title">${productName}</div>
+          </td>
+          <td class="align-center">${item.grade || "A"}</td>
+          <td class="align-center">${item.quantity_kg}</td>
+          <td class="align-right">${parseFloat(String(item.rate_per_kg)).toFixed(2)}</td>
+          <td class="align-right">${parseFloat(String(item.amount)).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+        </tr>
+      `;
+    });
+    } else if (task.grade_splits && task.grade_splits.length > 0) {
+    task.grade_splits.forEach((item: any, idx: number) => {
+      const rate = item.quantity_kg > 0 ? item.amount / item.quantity_kg : 0;
+      tableRowsHtml += `
+        <tr>
+          <td>${idx + 1}</td>
+          <td><div class="item-title">${productName}</div></td>
+          <td class="align-center">${item.grade || "A"}</td>
+          <td class="align-center">${item.quantity_kg}</td>
+          <td class="align-right">${rate.toFixed(2)}</td>
+          <td class="align-right">${parseFloat(String(item.amount)).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+        </tr>
+      `;
+    });
+  } else {
+    const rate = acceptedQty > 0 ? finalAmount / acceptedQty : 0;
+    tableRowsHtml = `
+      <tr>
+        <td>1</td>
+        <td>
+          <div class="item-title">${productName}</div>
+        </td>
+        <td class="align-center">${payload.final_grade || task.final_grade || task.crop?.grade || "A"}</td>
+        <td class="align-center">${acceptedQty}</td>
+        <td class="align-right">${rate.toFixed(2)}</td>
+        <td class="align-right">${finalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+      </tr>
+    `;
+  }
+  
+  const paymentStatus = mapPaymentStatus(payload.payment_status || task.payment_status);
+  const paymentMethod = mapPaymentMethod(payload.payment_method || task.payment_method);
+  
+  const payDateRaw = payload.payment_date || task.payment_date;
+  const paymentDateStr = payDateRaw 
+    ? new Date(payDateRaw).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+    : receiptDateStr;
+    
+  let transactionIdStr = payload.transaction_id || task.transaction_id || "";
+  if (!transactionIdStr && (paymentStatus.toLowerCase() === "paid" || paymentStatus.toLowerCase() === "processing")) {
+    transactionIdStr = "TXN" + Math.floor(1000000000 + Math.random() * 9000000000);
+  }
+  if (!transactionIdStr) {
+    transactionIdStr = "Pending";
+  }
+  
+  const amountInWords = numberToWords(finalAmount);
+
+  const htmlContent = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Payment Receipt - ${receiptNo}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Caveat:wght@600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary-blue: #0f4c81;
+      --text-black: #000000;
+      --text-dark: #333333;
+      --text-muted: #555555;
+      --border-light: #e0e0e0;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', sans-serif;
+      color: var(--text-black);
+      background-color: #ffffff;
+      padding: 30px;
+    }
+    .receipt-card {
+      width: 100%;
+      max-width: 800px;
+      margin: 0 auto;
+      background-color: #ffffff;
+      border: 1px solid #e0e0e0;
+      padding: 40px;
+    }
+    .receipt-header {
+      display: block;
+      border-bottom: 1px solid var(--text-black);
+      padding-bottom: 20px;
+      margin-bottom: 25px;
+    }
+    .company-title {
+      font-weight: bold;
+      font-size: 18px;
+      margin-bottom: 6px;
+      line-height: 1.2;
+    }
+    .company-details {
+      font-size: 11px;
+      color: var(--text-dark);
+      line-height: 1.5;
+    }
+    .logo-container {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      margin-bottom: 12px;
+    }
+    .doc-type {
+      font-weight: bold;
+      font-size: 18px;
+      color: var(--primary-blue);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      line-height: 1.2;
+    }
+    .receipt-metadata {
+      font-size: 11px;
+      line-height: 1.6;
+      color: var(--text-dark);
+      text-align: right;
+    }
+    .addresses-section {
+      font-size: 11px;
+      line-height: 1.6;
+      margin-bottom: 25px;
+      margin-top: 15px;
+    }
+    .address-title {
+      font-weight: bold;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      font-size: 10px;
+    }
+    .address-name {
+      font-weight: bold;
+      font-size: 12px;
+      margin-bottom: 2px;
+    }
+    .receipt-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+      margin-bottom: 15px;
+    }
+    .receipt-table th {
+      font-weight: bold;
+      padding: 8px 4px;
+      border-top: 1px solid var(--text-black);
+      border-bottom: 1px solid var(--text-black);
+      text-align: left;
+      color: var(--text-dark);
+    }
+    .receipt-table td {
+      padding: 12px 4px;
+      border-bottom: 1px solid var(--border-light);
+      vertical-align: top;
+      line-height: 1.5;
+    }
+    .align-center { text-align: center; }
+    .align-right { text-align: right; }
+    .item-title { font-weight: bold; font-size: 11.5px; }
+    .totals-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      padding: 12px 4px;
+      border-bottom: 1px solid var(--text-black);
+      margin-bottom: 15px;
+      background-color: #fafafa;
+    }
+    .wastage-box { line-height: 1.6; }
+    .wastage-title { font-weight: bold; color: #b91c1c; font-size: 11px; text-transform: uppercase; }
+    .summary-section {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      margin-bottom: 25px;
+      font-size: 11px;
+    }
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      width: 280px;
+      padding: 4px 0;
+    }
+    .summary-row.total-bold {
+      font-weight: bold;
+      font-size: 13px;
+      border-top: 1px solid var(--text-black);
+      border-bottom: 1px solid var(--text-black);
+      padding: 8px 0;
+      margin-top: 4px;
+    }
+    .amount-payable-row {
+      font-weight: bold;
+      font-size: 11.5px;
+      text-align: right;
+      width: 100%;
+      border-bottom: 1px solid var(--border-light);
+      padding-bottom: 15px;
+      margin-bottom: 25px;
+    }
+    .bottom-layout {
+      display: grid;
+      grid-template-columns: 1.5fr 1fr;
+      gap: 40px;
+      font-size: 11px;
+      line-height: 1.5;
+      margin-bottom: 30px;
+    }
+    .bottom-title { font-weight: bold; margin-bottom: 8px; }
+    .payment-details-list { line-height: 1.6; }
+    .payment-details-list strong { font-weight: 500; display: inline-block; width: 110px; color: var(--text-muted); }
+    .signature-area {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-end;
+      text-align: center;
+      height: 100%;
+    }
+    .for-company { font-size: 10px; color: var(--text-muted); margin-bottom: 20px; }
+    .handwritten-sig { font-family: 'Caveat', cursive; font-size: 26px; color: #1e3a8a; height: 35px; line-height: 35px; }
+    .signature-line { width: 100%; border-top: 1px solid var(--text-black); margin-bottom: 8px; }
+    .signatory-label { font-size: 11px; color: var(--text-dark); }
+    .notes-section {
+      font-size: 10px;
+      line-height: 1.5;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border-light);
+      padding-bottom: 15px;
+      margin-bottom: 15px;
+    }
+    .notes-title { font-weight: bold; color: var(--text-dark); margin-bottom: 4px; }
+    .page-footer { display: flex; justify-content: space-between; font-size: 9px; color: var(--text-muted); }
+  </style>
+</head>
+<body>
+  <div class="receipt-card" id="receipt-element">
+    <div class="receipt-header" style="display: block;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; width: 100%;">
+        <div style="display: flex; align-items: center; gap: 5px;">
+          <img src="/APOM%20logo.png" alt="APOM Logo" style="height: 46px; width: auto; display: block;">
+          <div class="company-title" style="margin-bottom: 0;">Agriculture Product Open Market</div>
+        </div>
+        <div class="doc-type" style="margin-bottom: 0;">Payment Receipt</div>
+      </div>
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%;">
+        <div class="company-details" style="max-width: 60%;">
+          <div># 290, 2nd Floor, Andrahalli Main Road, Gruhalakshmi Layout,</div>
+          <div>Bangalore-560073</div>
+          <div>Mobile: 9019814347 | Email: apomlogistics1@gmail.com</div>
+        </div>
+        <div class="receipt-metadata" style="text-align: right; max-width: 38%;">
+          <div><strong>Receipt #:</strong> ${receiptNo}</div>
+          <div><strong>Receipt Date:</strong> ${receiptDateStr}</div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="addresses-section" style="margin-bottom: 25px;">
+      <div class="address-title">Farmer Details:</div>
+      <div class="address-name">${farmerName}</div>
+      <div>Ph: ${farmerPhone}</div>
+      <div><strong>Address:</strong> ${farmerAddress}</div>
+    </div>
+    
+    <div class="table-section">
+      <table class="receipt-table">
+        <thead>
+          <tr>
+            <th style="width: 5%;">#</th>
+            <th style="width: 47%;">Product Name</th>
+            <th style="width: 12%; text-align: center;">Grade</th>
+            <th style="width: 12%; text-align: center;">Quantity (Kg)</th>
+            <th style="width: 12%; text-align: right;">Amount per Kg</th>
+            <th style="width: 12%; text-align: right;">Total Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${tableRowsHtml}
+        </tbody>
+      </table>
+    </div>
+    
+    <div class="totals-row">
+      <div class="wastage-box">
+        <div class="wastage-title">Wastage Details:</div>
+        <div><strong>Wastage Quantity:</strong> ${wastageQty} Kg (${wastagePercent}% of gross procurement)</div>
+      </div>
+      <div style="text-align: right; line-height: 1.6; display: flex; align-items: center; justify-content: flex-end;">
+        <div><strong>Total Qty:</strong> ${acceptedQty.toFixed(3)} kg</div>
+      </div>
+    </div>
+    
+    <div class="summary-section" style="margin-bottom: 8px;">
+      <div class="summary-row total-bold">
+        <span class="summary-label">Total Amount</span>
+        <span class="summary-value">₹${finalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+      </div>
+    </div>
+    
+    <div style="font-size: 10.5px; color: var(--text-muted); text-align: right; width: 100%; margin-bottom: 15px; line-height: 1.4;">
+      Total in words: ${amountInWords}
+    </div>
+    
+    <div class="amount-payable-row">
+      Amount Paid: &nbsp;&nbsp;&nbsp;&nbsp; ₹${finalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+    </div>
+    
+    <div class="bottom-layout">
+      <div>
+        <div class="bottom-title">Payment Details:</div>
+        <div class="payment-details-list">
+          <div><strong>Payment Status:</strong> ${paymentStatus}</div>
+          <div><strong>Payment Method:</strong> ${paymentMethod}</div>
+          <div><strong>Payment Date:</strong> ${paymentDateStr}</div>
+          <div><strong>Transaction ID:</strong> ${transactionIdStr}</div>
+        </div>
+      </div>
+      
+      <div class="signature-area">
+        <div class="for-company">For APOM</div>
+        <div class="handwritten-sig">Kavitha</div>
+        <div class="signature-line"></div>
+        <div class="signatory-label">Authorized Signatory</div>
+      </div>
+    </div>
+    
+    <div class="notes-section">
+      <div class="notes-title">Notes:</div>
+      <div>Thank you for the Business.</div>
+    </div>
+    
+    <div class="page-footer">
+      <div>Page 1/1</div>
+      <div>This is a digitally signed document.</div>
+    </div>
+  </div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <script>
+    window.onload = function() {
+      const element = document.getElementById('receipt-element');
+      const opt = {
+        margin:       0.2,
+        filename:     '${receiptNo}.pdf',
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, logging: false, useCORS: true },
+        jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
+      };
+      
+      setTimeout(function() {
+        html2pdf().from(element).set(opt).save().then(function() {
+          setTimeout(function() {
+            window.close();
+          }, 500);
+        }).catch(function(err) {
+          console.error("PDF download failed:", err);
+        });
+      }, 1200);
+    }
+  </script>
+</body>
+</html>
+  `;
+  
+  const printWindow = window.open("", "_blank");
+  if (printWindow) {
+    printWindow.document.open();
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+  } else {
+    toast.error("Popup blocked! Please allow popups for this site to download the receipt.");
+  }
+};
+
 function ProcurementReviewSection({ task, onFinalized }: { task: TaskDetail; onFinalized: () => void }) {
   const procuredQty = parseFloat(String(task.actual_quantity_kg ?? 0));
   const reportedAmount = parseFloat(String(task.procurement_amount ?? 0));
@@ -708,19 +1296,49 @@ function ProcurementReviewSection({ task, onFinalized }: { task: TaskDetail; onF
   }, [wastage, procuredQty]);
 
   const handleFinalize = async () => {
-    const w = parseFloat(wastage || "0"), accepted = parseFloat(acceptedQty), amount = parseFloat(finalAmount);
-    if (isNaN(accepted) || accepted <= 0) { toast.error("Enter a valid accepted quantity after wastage"); return; }
-    if (isNaN(amount) || amount <= 0) { toast.error("Enter a valid final procurement amount"); return; }
+    const acceptedQtyNum = parseFloat(acceptedQty || "0");
+    const finalAmountNum = parseFloat(finalAmount || "0");
+    const grade = task.crop?.grade ?? "A";
+
+    if (!(acceptedQtyNum > 0)) {
+      toast.error("Enter a valid accepted quantity");
+      return;
+    }
+    if (!(finalAmountNum > 0)) {
+      toast.error("Enter a valid final amount");
+      return;
+    }
+
+    const splits = [
+      { grade, quantity_kg: acceptedQtyNum, amount: finalAmountNum },
+    ];
+
+    const apiPayload: Record<string, unknown> = {
+      wastage_quantity_kg: parseFloat(wastage || "0"),
+      splits, // backend expects this exact key
+      procurement_remarks: remarks.trim() || undefined,
+    };
+
     setLoading(true);
     try {
-      await api.patch(`/admin/pickups-deliveries/${task.delivery_id}/finalize-procurement`, {
-        wastage_quantity_kg: w, accepted_quantity_kg: accepted,
-        final_procurement_amount: amount, procurement_remarks: remarks.trim() || undefined,
-      });
+      await api.patch(`/admin/pickups-deliveries/${task.delivery_id}/finalize-procurement`, apiPayload);
       toast.success("Procurement finalized — stock added to inventory");
+      try {
+        downloadReceiptPDF(task, {
+          wastage_quantity_kg: apiPayload.wastage_quantity_kg,
+          accepted_quantity_kg: acceptedQtyNum,
+          final_procurement_amount: finalAmountNum,
+          final_grade: grade,
+        });
+      } catch (pdfErr) {
+        console.error("PDF Trigger Error:", pdfErr);
+      }
       onFinalized();
-    } catch (e: unknown) { toast.error(e instanceof Error ? e.message : "Failed to finalize procurement"); }
-    finally { setLoading(false); }
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Failed to finalize procurement");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const productName = task.crop?.product?.product_name ?? `Product #${task.crop?.product_id ?? "—"}`;
@@ -755,15 +1373,22 @@ function ProcurementReviewSection({ task, onFinalized }: { task: TaskDetail; onF
           </div>
           <Badge className="bg-emerald-400 text-emerald-900 border-0 text-[11px] font-semibold">✓ Finalized</Badge>
         </div>
-        <div className="bg-card px-4 py-3 grid grid-cols-2 gap-x-4 gap-y-3 text-xs">
-       <InfoRow label="Final grade" value={task.crop?.grade ?? "—"} />
-<InfoRow label="Wastage removed" value={`${task.wastage_quantity_kg ?? 0} kg`} />
-<InfoRow label="Accepted to inventory" value={`${task.accepted_quantity_kg ?? 0} kg`} />
-<InfoRow label="Final amount" value={`₹ ${Number(task.final_procurement_amount ?? 0).toLocaleString("en-IN")}`} />
-<InfoRow label="Payment status" value={task.status ?? "—"} />
-<InfoRow label="Payment method" value={task.payment_method ?? "—"} />
-          {task.procurement_remarks && <div className="col-span-2"><InfoRow label="Remarks" value={task.procurement_remarks} /></div>}
+      {getGradeSplits(task).length ? (
+        <div className="col-span-2 space-y-1 p-2">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Grade breakdown</p>
+          {getGradeSplits(task).map((g) => {
+            const rate = g.quantity_kg > 0 ? (g.amount / g.quantity_kg).toFixed(2) : "—";
+            return (
+              <div key={g.grade} className="flex justify-between text-xs">
+                <span>Grade {g.grade} · {g.quantity_kg} kg</span>
+                <span>₹{rate}/kg → ₹{Number(g.amount).toLocaleString("en-IN")}</span>
+              </div>
+            );
+          })}
         </div>
+      ) : (
+        <InfoRow label="Final grade" value={task.crop?.grade ?? "—"} />
+      )}
         <p className="px-4 py-2.5 text-[11px] text-muted-foreground italic border-t border-border bg-muted/10">
           Farmer payment is handled outside the application.
         </p>
@@ -813,7 +1438,7 @@ function ProcurementReviewSection({ task, onFinalized }: { task: TaskDetail; onF
             <Input id="wastage_kg" type="number" min={0} step="0.01" value={wastage} onChange={(e) => setWastage(e.target.value)} />
           </FormField>
           <FormField label="Accepted qty (kg)" id="accepted_kg">
-            <Input id="accepted_kg" type="number" min={0} step="0.01" value={acceptedQty} onChange={(e) => setAcceptedQty(e.target.value)} className="bg-muted/50 text-muted-foreground" readOnly />
+            <Input id="accepted_kg" type="number" min={0} step="0.01" value={acceptedQty} onChange={(e) => setAcceptedQty(e.target.value)} />
           </FormField>
         </div>
         <FormField label="Final amount (₹) *" id="final_amount">
@@ -855,11 +1480,15 @@ function ProcurementReviewInlineContent({ task, onFinalized, onCancel }: {
   const procuredQty = parseFloat(String(task.actual_quantity_kg ?? 0));
   const reportedAmount = parseFloat(String(task.procurement_amount ?? 0));
 
-  const [activeTab, setActiveTab] = useState<1 | 2>(1);
+  const [activeTab, setActiveTab] = useState<1 | 2 | 3>(1);
   const [wastage, setWastage] = useState("0");
   const [acceptedQty, setAcceptedQty] = useState(procuredQty > 0 ? String(procuredQty) : "");
-  const [finalAmount, setFinalAmount] = useState(reportedAmount > 0 ? String(reportedAmount) : "");
-  const [finalGrade, setFinalGrade] = useState(task.crop?.grade ?? "A");
+  const [gradeRows, setGradeRows] = useState<GradeRow[]>(() => [
+    makeGradeRow(task.crop?.grade ?? "A", procuredQty > 0 ? String(procuredQty) : "", ""),
+  ]);
+
+  const acceptedTarget = Math.max(0, parseFloat(acceptedQty) || 0);
+  const wastageEntered = parseFloat(wastage) || 0;
   const [remarks, setRemarks] = useState("");
   const [paymentStatus, setPaymentStatus] = useState<"pending" | "processing" | "paid" | "failed">("pending");
   const [paymentMethod, setPaymentMethod] = useState<"bank_transfer" | "upi" | "cash" | "cheque" | "">("");
@@ -868,58 +1497,87 @@ function ProcurementReviewInlineContent({ task, onFinalized, onCancel }: {
   const [transactionReference, setTransactionReference] = useState("");
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    const w = parseFloat(wastage || "0");
-    if (procuredQty > 0 && !isNaN(w)) {
-      const next = Math.max(0, procuredQty - w);
-      setAcceptedQty(next > 0 ? next.toFixed(2) : "");
-    }
-  }, [wastage, procuredQty]);
+useEffect(() => {
+  setGradeRows((prev) => {
+    if (prev.length !== 1) return prev;
+    return [{ ...prev[0], quantity_kg: acceptedTarget > 0 ? acceptedTarget.toFixed(2) : "" }];
+  });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [acceptedQty, procuredQty]);
 
-  const ratePreview = (() => {
-    const accepted = parseFloat(acceptedQty || "0");
-    const amount = parseFloat(finalAmount || "0");
-    return accepted > 0 && amount > 0 ? (amount / accepted).toFixed(2) : null;
-  })();
+  const allocatedQty = gradeRows.reduce((s, r) => s + (parseFloat(r.quantity_kg) || 0), 0);
+const totalAmount = gradeRows.reduce(
+  (s, r) => s + (parseFloat(r.quantity_kg) || 0) * (parseFloat(r.rate_per_kg) || 0),
+  0
+);
+const isAllocationBalanced = Math.abs(acceptedTarget - allocatedQty) < 0.01 && acceptedTarget > 0;
+const handleNext = () => {
+  if (!(acceptedTarget > 0)) {
+    toast.error("Enter a valid accepted quantity");
+    return;
+  }
+  if (!isAllocationBalanced) {
+    toast.error("Grade quantities must add up to the accepted quantity");
+    return;
+  }
+  if (gradeRows.some((r) => !(parseFloat(r.rate_per_kg) > 0))) {
+    toast.error("Enter a rate for every grade row");
+    return;
+  }
+  setActiveTab(3);
+};
 
-  const handleNext = () => {
-    const accepted = parseFloat(acceptedQty);
-    const amount = parseFloat(finalAmount);
-    if (isNaN(accepted) || accepted <= 0) { toast.error("Enter a valid accepted quantity after wastage"); return; }
-    if (isNaN(amount) || amount <= 0) { toast.error("Enter a valid final procurement amount"); return; }
-    setActiveTab(2);
+const handleFinalize = async () => {
+  const splits = gradeRows.map((r) => ({
+    grade: r.grade,
+    quantity_kg: parseFloat(r.quantity_kg) || 0,
+    amount: (parseFloat(r.quantity_kg) || 0) * (parseFloat(r.rate_per_kg) || 0),
+  }));
+
+  const apiPayload: Record<string, unknown> = {
+    wastage_quantity_kg: parseFloat(wastage || "0"),
+    splits, // <-- backend expects this key, not final_grade/grade_breakdown
+    payment_status: paymentStatus,
+    procurement_remarks: remarks.trim() || undefined,
   };
+  if (paymentMethod) apiPayload.payment_method = paymentMethod;
+  if (paymentDate) apiPayload.payment_date = new Date(paymentDate).toISOString();
+  if (transactionId.trim()) apiPayload.transaction_id = transactionId.trim();
+  if (transactionReference.trim()) apiPayload.transaction_reference = transactionReference.trim();
 
-  const handleFinalize = async () => {
-    const w = parseFloat(wastage || "0");
-    const accepted = parseFloat(acceptedQty);
-    const amount = parseFloat(finalAmount);
-    setLoading(true);
+  setLoading(true);
+  try {
+    await api.patch(`/admin/pickups-deliveries/${task.delivery_id}/finalize-procurement`, apiPayload);
+    toast.success("Procurement finalized — stock added to inventory");
     try {
-      const payload: Record<string, unknown> = {
-        wastage_quantity_kg: w,
-        accepted_quantity_kg: accepted,
-        final_procurement_amount: amount,
-        final_grade: finalGrade || undefined,
+      // receipt PDF still wants rate_per_kg per row, so build that shape separately
+      downloadReceiptPDF(task, {
+        wastage_quantity_kg: apiPayload.wastage_quantity_kg,
+        accepted_quantity_kg: allocatedQty,
+        final_procurement_amount: totalAmount,
+        grade_breakdown: gradeRows.map((r) => ({
+          grade: r.grade,
+          quantity_kg: parseFloat(r.quantity_kg) || 0,
+          rate_per_kg: parseFloat(r.rate_per_kg) || 0,
+          amount: (parseFloat(r.quantity_kg) || 0) * (parseFloat(r.rate_per_kg) || 0),
+        })),
         payment_status: paymentStatus,
-        procurement_remarks: remarks.trim() || undefined,
-      };
-      if (paymentMethod) payload.payment_method = paymentMethod;
-      if (paymentDate) payload.payment_date = new Date(paymentDate).toISOString();
-      if (transactionId.trim()) payload.transaction_id = transactionId.trim();
-      if (transactionReference.trim()) payload.transaction_reference = transactionReference.trim();
-
-      await api.patch(`/admin/pickups-deliveries/${task.delivery_id}/finalize-procurement`, payload);
-      toast.success("Procurement finalized — stock added to inventory");
-      onFinalized();
-    } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : "Failed to finalize procurement");
-    } finally {
-      setLoading(false);
+        payment_method: paymentMethod,
+        payment_date: paymentDate ? new Date(paymentDate).toISOString() : undefined,
+        transaction_id: transactionId,
+      });
+    } catch (pdfErr) {
+      console.error("PDF Trigger Error:", pdfErr);
     }
-  };
+    onFinalized();
+  } catch (e: unknown) {
+    toast.error(e instanceof Error ? e.message : "Failed to finalize procurement");
+  } finally {
+    setLoading(false);
+  }
+};
 
-  const productName = task.crop?.product?.product_name ?? `Product #${task.crop?.product_id ?? "—"}`;
+const productName = task.crop?.product?.product_name ?? `Product #${task.crop?.product_id ?? "—"}`;
 
   return (
     <div className="flex flex-col">
@@ -927,7 +1585,8 @@ function ProcurementReviewInlineContent({ task, onFinalized, onCancel }: {
       <div className="flex border-b border-border bg-muted/10 -mx-1">
         {([
           { step: 1 as const, label: "Product details", icon: <IconPackage className="size-3.5" /> },
-          { step: 2 as const, label: "Payment", icon: <IconCheck className="size-3.5" /> },
+          { step: 2 as const, label: "QC", icon: <IconCheck className="size-3.5" /> },
+          { step: 3 as const, label: "Payment", icon: <IconCheck className="size-3.5" /> },
         ] as const).map(({ step, label, icon }) => {
           const isDone = activeTab > step;
           const isActive = activeTab === step;
@@ -952,92 +1611,76 @@ function ProcurementReviewInlineContent({ task, onFinalized, onCancel }: {
       </div>
 
       {/* ── Tab 1: Product details ── */}
-      {activeTab === 1 && (
-        <div className="space-y-3 pt-3">
-          {/* Info grid */}
-          <div className="grid grid-cols-2 rounded-lg border border-border bg-card overflow-hidden">
-            {[
-              { label: "Product", value: productName },
-              { label: "Original grade", value: task.crop?.grade ?? "—" },
-              { label: "Procured qty", value: `${procuredQty || "—"} kg` },
-              { label: "Reported amount", value: reportedAmount > 0 ? `₹ ${reportedAmount.toLocaleString("en-IN")}` : "—" },
-              ...(task.procurement_price_per_kg ? [{ label: "Reported rate", value: `₹ ${task.procurement_price_per_kg} / kg` }] : []),
-            ].map((item) => (
-              <div key={item.label} className="px-3 py-2 [&:nth-child(even)]:border-r-0 [&:nth-last-child(-n+2)]:border-b-0">
-                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-0.5">{item.label}</p>
-                <p className="text-sm font-semibold">{item.value}</p>
-              </div>
-            ))}
-          </div>
-
-          {/* Quantity & quality section */}
-          <div className="rounded-lg border border-border overflow-hidden">
-            <div className="px-3 py-2 bg-muted/30 border-b border-border flex items-center gap-2">
-              <IconPackage className="size-3.5 text-muted-foreground" />
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Quantity &amp; quality</span>
-            </div>
-            <div className="p-3 space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <FormField label="Wastage (kg)" id="dlg_wastage_kg">
-                  <Input id="dlg_wastage_kg" type="number" min={0} step="0.01" value={wastage} onChange={(e) => setWastage(e.target.value)} />
-                </FormField>
-                <FormField label="Accepted qty (kg)" id="dlg_accepted_kg">
-                  <Input id="dlg_accepted_kg" type="number" min={0} step="0.01" value={acceptedQty} readOnly className="bg-muted/50 text-muted-foreground" />
-                </FormField>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <FormField label="Final grade" id="dlg_final_grade">
-                  <Select value={finalGrade} onValueChange={setFinalGrade}>
-                    <SelectTrigger id="dlg_final_grade"><SelectValue placeholder="Select grade" /></SelectTrigger>
-                    <SelectContent>
-                      {["A", "B", "C"].map((g) => <SelectItem key={g} value={g}>{g}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </FormField>
-                <FormField label="Final amount (₹) *" id="dlg_final_amount">
-                  <Input id="dlg_final_amount" type="number" min={0} step="0.01" value={finalAmount}
-                    onChange={(e) => setFinalAmount(e.target.value)}
-                    className="border-violet-300 dark:border-violet-700 focus-visible:ring-violet-400" />
-                </FormField>
-              </div>
-
-              {/* Live preview strip */}
-              {(parseFloat(acceptedQty) > 0 || parseFloat(finalAmount) > 0) && (
-                <div className="grid grid-cols-3 border border-violet-200 dark:border-violet-800 rounded-lg overflow-hidden">
-                  {[
-                    { label: "Accepted", value: `${parseFloat(acceptedQty || "0").toFixed(1)} kg` },
-                    { label: "Rate", value: ratePreview ? `₹${ratePreview}/kg` : "—" },
-                    { label: "Total", value: parseFloat(finalAmount || "0") > 0 ? `₹ ${Number(finalAmount).toLocaleString("en-IN")}` : "—" },
-                  ].map((s, i) => (
-                    <div key={s.label} className={`py-2 text-center bg-violet-50/70 dark:bg-violet-950/30 ${i < 2 ? "border-r border-violet-200 dark:border-violet-800" : ""}`}>
-                      <p className="text-[10px] text-violet-600 dark:text-violet-400 uppercase tracking-wide mb-0.5">{s.label}</p>
-                      <p className="text-sm font-semibold text-violet-900 dark:text-violet-100">{s.value}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <FormField label="Inspection remarks" id="dlg_proc_remarks">
-                <Textarea id="dlg_proc_remarks" rows={2} placeholder="Optional notes from warehouse inspection…"
-                  value={remarks} onChange={(e) => setRemarks(e.target.value)} />
-              </FormField>
-            </div>
-          </div>
-
-          {/* Tab 1 footer */}
-          <div className="flex items-center justify-between pt-1">
-            <Button variant="outline" size="sm" onClick={onCancel} className="gap-1.5 text-red-600 border-red-200 hover:bg-red-50 dark:hover:bg-red-950/20">
-              <IconX className="size-3.5" />Cancel
-            </Button>
-            <Button onClick={handleNext} className="gap-2 bg-violet-700 hover:bg-violet-800 dark:bg-violet-600 dark:hover:bg-violet-700">
-              Next <IconArrowRight className="size-4" />
-            </Button>
-          </div>
+     {activeTab === 1 && (
+  <div className="space-y-3 pt-3">
+    <div className="grid grid-cols-2 rounded-lg border border-border bg-card overflow-hidden">
+      {[
+        { label: "Product", value: productName },
+        { label: "Original grade", value: task.crop?.grade ?? "—" },
+        { label: "Procured qty", value: `${procuredQty || "—"} kg` },
+        { label: "Reported amount", value: reportedAmount > 0 ? `₹ ${reportedAmount.toLocaleString("en-IN")}` : "—" },
+        ...(task.procurement_price_per_kg ? [{ label: "Reported rate", value: `₹ ${task.procurement_price_per_kg} / kg` }] : []),
+      ].map((item) => (
+        <div key={item.label} className="px-3 py-2 [&:nth-child(even)]:border-r-0 [&:nth-last-child(-n+2)]:border-b-0">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-0.5">{item.label}</p>
+          <p className="text-sm font-semibold">{item.value}</p>
         </div>
-      )}
+      ))}
+    </div>
+    <p className="text-xs text-muted-foreground px-1">
+      Confirm these match what the delivery person submitted, then move to quantity and quality.
+    </p>
+    <div className="flex items-center justify-between pt-1">
+      <Button variant="outline" size="sm" onClick={onCancel} className="gap-1.5 text-red-600 border-red-200 hover:bg-red-50 dark:hover:bg-red-950/20">
+        <IconX className="size-3.5" />Cancel
+      </Button>
+      <Button onClick={() => setActiveTab(2)} className="gap-2 bg-violet-700 hover:bg-violet-800 dark:bg-violet-600 dark:hover:bg-violet-700">
+        Next <IconArrowRight className="size-4" />
+      </Button>
+    </div>
+  </div>
+)}
 
-      {/* ── Tab 2: Payment ── */}
-      {activeTab === 2 && (
+{activeTab === 2 && (
+  <div className="space-y-3 pt-3">
+    <div className="grid grid-cols-2 gap-3">
+      <FormField label="Accepted qty (kg) *" id="dlg_accepted_kg">
+        <Input
+          id="dlg_accepted_kg"
+          type="number"
+          min={0}
+          step="0.01"
+          value={acceptedQty}
+          onChange={(e) => setAcceptedQty(e.target.value)}
+          className="border-violet-300 dark:border-violet-700 focus-visible:ring-violet-400"
+        />
+      </FormField>
+      <FormField label="Wastage (kg)" id="dlg_wastage_kg">
+        <Input id="dlg_wastage_kg" type="number" min={0} step="0.01" value={wastage} onChange={(e) => setWastage(e.target.value)} />
+      </FormField>
+    </div>
+
+
+    <GradeBreakdownEditor rows={gradeRows} setRows={setGradeRows} targetQty={acceptedTarget} />
+
+    <FormField label="Inspection remarks" id="dlg_proc_remarks">
+      <Textarea id="dlg_proc_remarks" rows={2} placeholder="Optional notes from warehouse inspection…"
+        value={remarks} onChange={(e) => setRemarks(e.target.value)} />
+    </FormField>
+
+  <div className="flex items-center justify-between pt-1">
+      <Button variant="outline" size="sm" onClick={() => setActiveTab(1)} className="gap-1.5">
+        <IconArrowRight className="size-3.5 rotate-180" />Previous
+      </Button>
+      <Button onClick={handleNext} className="gap-2 bg-violet-700 hover:bg-violet-800 dark:bg-violet-600 dark:hover:bg-violet-700">
+        Next <IconArrowRight className="size-4" />
+      </Button>
+    </div>
+  </div>
+)}
+
+      {/* ── Tab 3: Payment ── */}
+      {activeTab === 3 && (
         <div className="space-y-3 pt-3">
           {/* Payment section */}
           <div className="rounded-lg border border-border overflow-hidden">
@@ -1085,23 +1728,27 @@ function ProcurementReviewInlineContent({ task, onFinalized, onCancel }: {
           </div>
 
           {/* Summary recap */}
-          <div className="grid grid-cols-2 rounded-lg border border-border bg-muted/20 overflow-hidden">
-            {[
-              { label: "Accepted qty", value: `${parseFloat(acceptedQty || "0").toFixed(1)} kg` },
-              { label: "Final amount", value: parseFloat(finalAmount || "0") > 0 ? `₹ ${Number(finalAmount).toLocaleString("en-IN")}` : "—" },
-              { label: "Final grade", value: finalGrade || "—" },
-              { label: "Effective rate", value: ratePreview ? `₹${ratePreview}/kg` : "—" },
-            ].map((item, i) => (
-              <div key={item.label} className="px-3 py-2 border-b border-r border-border [&:nth-child(even)]:border-r-0 [&:nth-last-child(-n+2)]:border-b-0">
-                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-0.5">{item.label}</p>
-                <p className="text-sm font-semibold">{item.value}</p>
-              </div>
-            ))}
-          </div>
+          <div className="rounded-lg border border-border bg-muted/20 overflow-hidden">
+  <div className="px-3 py-2 border-b border-border text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+    Grade summary
+  </div>
+  <div className="divide-y divide-border">
+    {gradeRows.map((r) => (
+      <div key={r.id} className="flex items-center justify-between px-3 py-1.5 text-xs">
+        <span className="font-medium">Grade {r.grade} · {parseFloat(r.quantity_kg || "0").toFixed(1)} kg</span>
+        <span className="text-muted-foreground">₹{r.rate_per_kg || 0}/kg → ₹{((parseFloat(r.quantity_kg)||0)*(parseFloat(r.rate_per_kg)||0)).toLocaleString("en-IN")}</span>
+      </div>
+    ))}
+  </div>
+  <div className="px-3 py-2 border-t border-border flex justify-between text-xs font-bold">
+    <span>Total ({allocatedQty.toFixed(1)} kg)</span>
+    <span>₹ {totalAmount.toLocaleString("en-IN")}</span>
+  </div>
+</div>
 
-          {/* Tab 2 footer */}
+          {/* Tab 3 footer */}
           <div className="flex items-center justify-between pt-1">
-            <Button variant="outline" size="sm" onClick={() => setActiveTab(1)} className="gap-1.5">
+            <Button variant="outline" size="sm" onClick={() => setActiveTab(2)} className="gap-1.5">
               <IconArrowRight className="size-3.5 rotate-180" />Previous
             </Button>
             <Button onClick={handleFinalize} disabled={loading}
@@ -1185,7 +1832,6 @@ function ProcurementReviewDialog({ task, onOpenChange, onFinalized }: {
     vendor: null,
     order: null,
     status_history: [],
-    
   } as TaskDetail : null;
 
   return (
@@ -1361,9 +2007,9 @@ function TaskDetailSheet({ taskId, open, onOpenChange, onTaskUpdated }: {
                 <div className="rounded-xl border border-border bg-card overflow-hidden">
                   <div className="px-4 py-3 border-b border-border bg-muted/20 flex items-center justify-between">
                     <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Actions</span>
-                    <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5" onClick={() => setShowAssign(true)}>
+                    {/* <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5" onClick={() => setShowAssign(true)}>
                       <IconUser className="size-3" />Reassign
-                    </Button>
+                    </Button> */}
                   </div>
                   <div className="px-4 py-3 space-y-3">
                     {STATUS_FLOW[task.status]?.filter((s) => s !== "cancelled").length > 0 && (

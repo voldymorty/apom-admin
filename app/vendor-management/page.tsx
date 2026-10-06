@@ -383,7 +383,7 @@ export default function VendorManagement() {
               <div className="relative w-full md:w-96">
                 <IconSearch className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  placeholder="Search vendor name, manager..."
+                  placeholder="Search shop name, manager, state, district, city.."
                   className="pl-9 bg-white dark:bg-card focus-visible:ring-primary"
                   value={search}
                   onChange={(e) => handleSearchChange(e.target.value)}
@@ -460,9 +460,9 @@ export default function VendorManagement() {
                       <TableHead className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">
                         City
                       </TableHead>
-                      <TableHead className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">
+                      {/* <TableHead className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">
                         Type
-                      </TableHead>
+                      </TableHead> */}
                       <TableHead className="px-4 py-3 text-xs font-semibold uppercase tracking-wide">
                         Status
                       </TableHead>
@@ -532,14 +532,14 @@ export default function VendorManagement() {
                             {vendor.cityName}
                           </TableCell>
 
-                          <TableCell className="px-4 py-3 align-middle">
+                          {/* <TableCell className="px-4 py-3 align-middle">
                               <Badge
                                 variant="outline"
                                 className="bg-blue-50 text-blue-700 dark:bg-blue-950/30 border-blue-200 text-[10px] font-bold uppercase py-0.5"
                               >
                               {vendor.type}
                             </Badge>
-                          </TableCell>
+                          </TableCell> */}
 
                           <TableCell className="px-4 py-3 align-middle">
                             <Badge
@@ -575,8 +575,7 @@ export default function VendorManagement() {
                                   <span className="sr-only">View vendor</span>
                                 </Link>
                               </Button>
-                                {/* ── UNCHANGED: button now opens dialog instead of window.confirm ── */}
-                              <Button
+                              {/* <Button
                                 size="sm"
                                 variant="outline"
                                 className={
@@ -598,7 +597,7 @@ export default function VendorManagement() {
                                     : vendor.isActive
                                     ? "Deactivate"
                                     : "Activate"}
-                              </Button>
+                              </Button> */}
                             </div>
                           </TableCell>
                         </TableRow>

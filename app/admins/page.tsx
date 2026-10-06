@@ -384,7 +384,7 @@ export default function AdminsManagementPage() {
                     <Search size={16} />
                   </div>
                   <Input
-                    placeholder="Search by name, email or mobile..."
+                    placeholder="Search by mobile or email..."
                     className="pl-9 h-10 border-muted/50 bg-muted/20 focus-visible:ring-primary/20"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}

@@ -574,7 +574,7 @@ const exportDeliveryPersonnelToExcel = () => {
                       </Select>
                     </div>
 
-                    <div className="flex flex-col gap-1">
+                    {/* <div className="flex flex-col gap-1">
                       <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
                         Availability
                       </span>
@@ -591,7 +591,7 @@ const exportDeliveryPersonnelToExcel = () => {
                           <SelectItem value="false">Not Available</SelectItem>
                         </SelectContent>
                       </Select>
-                    </div>
+                    </div> */}
 
                     <div className="flex flex-col gap-1">
                       <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
@@ -612,7 +612,7 @@ const exportDeliveryPersonnelToExcel = () => {
                       </Select>
                     </div>
 
-                    <div className="flex flex-col gap-1">
+                    {/* <div className="flex flex-col gap-1">
                       <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
                         Sort By
                       </span>
@@ -630,7 +630,7 @@ const exportDeliveryPersonnelToExcel = () => {
                           <SelectItem value="total_deliveries">Total Deliveries</SelectItem>
                         </SelectContent>
                       </Select>
-                    </div>
+                    </div> */}
 
                     <div className="flex flex-col gap-1">
                       <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
@@ -891,6 +891,7 @@ const exportDeliveryPersonnelToExcel = () => {
                         id="full_name"
                         name="full_name"
                         placeholder="E.g. Murugan S"
+                        minLength={4}
                         value={addForm.full_name}
                         onChange={handleAddChange}
                         required

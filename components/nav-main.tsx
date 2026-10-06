@@ -29,7 +29,7 @@ export function NavMain({
   return (
     <SidebarGroup>
       <SidebarGroupContent className="flex flex-col gap-2">
-        <SidebarGroupLabel>Management</SidebarGroupLabel>
+        {/* <SidebarGroupLabel>Management</SidebarGroupLabel> */}
         <SidebarMenu className="flex flex-col gap-4">
           {items.map((item) => (
             <SidebarMenuItem key={item.title}>
